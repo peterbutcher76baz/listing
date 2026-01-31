@@ -1,36 +1,33 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# REALIFO - Listing Report Generator (RESO 2.0)
 
-## Getting Started
+A robust, type-safe web application for Real Estate Agents to generate localized property reports. Built with a "Guardrail-First" architecture to ensure data integrity and minimized AI token consumption.
 
-First, run the development server:
+## 🏗️ Technical Stack
+- **Framework:** Next.js (App Router)
+- **UI Library:** Material UI (MUI) - Chosen for robust data-grid capabilities.
+- **ORM:** Drizzle ORM (PostgreSQL) - TypeScript-first database management.
+- **Validation:** Zod - Strictly enforced RESO 2.0 Data Dictionary standards.
+- **Localization:** Australian Metric System (SqM) & AUD Currency.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 🛡️ AI Guardrails & Context Framework
+This project uses specialized `.cursor/rules` to maintain architectural integrity:
+- **Global Constraints:** Prohibits unauthorized dependency changes or schema modifications.
+- **Schema Sentinel:** Protects the RESO 2.0 Zod/Drizzle definitions from accidental "drift."
+- **UI Logic Lock:** Ensures business logic and database writes stay out of React components.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🇦🇺 Localization Logic
+While data is stored in **RESO 2.0 standard (Imperial/SqFt)** for interoperability, the system uses a centralized conversion layer (`src/utils/conversions.ts`) to display:
+- **Area:** Automated conversion from SqFt to SqM (1 sqft ≈ 0.0929 sqm).
+- **Currency:** Standardized `en-AU` formatting for all price fields.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🚀 Getting Started
+1. **Environment:** Copy `.env.example` to `.env` and add your `DATABASE_URL`.
+2. **Install:** `npm install`
+3. **Database:** `npx drizzle-kit push` to sync the RESO 2.0 schema.
+4. **Test Guardrails:** `npm run test:guardrails` to verify schema snapshots.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📁 Project Structure
+- `/src/schemas`: RESO 2.0 Zod validation logic.
+- `/src/db`: Drizzle table definitions and connection.
+- `/src/utils`: DeepFreeze, conversions, and formatting.
+- `/tests`: Snapshot and persistence guardrail tests.

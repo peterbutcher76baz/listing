@@ -1,0 +1,9 @@
+---
+description: Standards for Material UI components
+globs: src/components/**/*.tsx
+---
+# MUI Usage Guardrails
+- **Theming:** Never use hardcoded colors. Use `theme.palette.primary.main` or `sx={{ color: 'primary.main' }}`.
+- **Components:** Favor `Stack` and `Box` for layouts over raw `div` tags.
+- **Icons:** Use `@mui/icons-material`. If an icon is for "Property," suggest a house or map pin.
+- **Typography:** Always use the `<Typography>` component with appropriate `variant` (h1, body1, etc.).
