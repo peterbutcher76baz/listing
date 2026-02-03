@@ -21,24 +21,26 @@ export const properties = pgTable("properties", {
   id: uuid("id").primaryKey().defaultRandom(),
   // FILE 45: Linking the property to the agent
   agentId: uuid("agent_id").references(() => agents.id),
-  externalId: text("external_id").unique().notNull(), // listing system ID
 
   address: text("address").notNull(),
   suburb: text("suburb").notNull(),
   postcode: text("postcode").notNull(),
-  latitude: decimal("latitude", { precision: 10, scale: 7 }),
-  longitude: decimal("longitude", { precision: 10, scale: 7 }),
   propertyType: text("property_type").notNull(), // e.g., House, Unit
   bedrooms: integer("bedrooms"),
   bathrooms: integer("bathrooms"),
   carSpaces: integer("car_spaces"),
-  landSize: decimal("land_size"),
-  livingArea: decimal("living_area"),
 
   status: text("status").default("Draft"), // Draft, Published, Archived
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Automatically generate the Zod schema from the DB table!
-export const selectPropertySchema = createSelectSchema(properties);
+// Only columns that exist in Neon: id, agent_id, address, suburb, postcode, bedrooms
+export const selectPropertySchema = createSelectSchema(properties).pick({
+  id: true,
+  agentId: true,
+  address: true,
+  suburb: true,
+  postcode: true,
+  bedrooms: true,
+});

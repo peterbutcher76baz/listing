@@ -33,8 +33,6 @@ async function main() {
       bedrooms: 4,
       bathrooms: 2,
       carSpaces: 2,
-      landSize: "650.00", // sqm
-      livingArea: "2152.78", // SqFt (approx 200 SqM)
     },
     {
       agentId: newAgent.id,
@@ -45,8 +43,6 @@ async function main() {
       bedrooms: 2,
       bathrooms: 1,
       carSpaces: 1,
-      landSize: null,
-      livingArea: "1076.39", // SqFt (approx 100 SqM)
     },
   ]);
 

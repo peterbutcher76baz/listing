@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import DashboardShell from "@/components/layout/DashboardShell";
+import DashboardShell from "@/components/layout/dashboard-shell";
 import { getPropertyById } from "@/lib/actions/properties";
 
 export default async function PropertyDetailPage({
@@ -29,9 +29,7 @@ export default async function PropertyDetailPage({
           <h1 className="text-2xl font-bold text-slate-900">
             {property.address}, {property.suburb}
           </h1>
-          <p className="text-slate-500 mt-1">
-            {property.postcode} • {property.propertyType ?? "Property"}
-          </p>
+          <p className="text-slate-500 mt-1">{property.postcode}</p>
           <p className="text-xl font-semibold text-blue-700 mt-2">
             Price on request
           </p>
@@ -52,14 +50,6 @@ export default async function PropertyDetailPage({
             </h2>
             <ul className="space-y-1 text-sm text-slate-600">
               <li>Bedrooms: {property.bedrooms ?? "—"}</li>
-              <li>Bathrooms: {property.bathrooms ?? "—"}</li>
-              <li>Car spaces: {property.carSpaces ?? "—"}</li>
-              {property.livingArea != null && (
-                <li>Living area: {String(property.livingArea)} m²</li>
-              )}
-              {property.landSize != null && (
-                <li>Land size: {String(property.landSize)} m²</li>
-              )}
             </ul>
           </div>
         </section>

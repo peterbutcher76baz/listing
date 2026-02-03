@@ -1,5 +1,5 @@
 import Link from "next/link";
-import DashboardShell from "@/components/layout/DashboardShell";
+import DashboardShell from "@/components/layout/dashboard-shell";
 import { getAgentProperties } from "@/lib/actions/properties";
 
 export default async function Page() {
@@ -12,6 +12,14 @@ export default async function Page() {
           REALINFO DASHBOARD IS LIVE
         </h1>
         <p className="mt-4 text-xl">Found {properties.length} properties for Chris.</p>
+        <div className="mt-4">
+          <Link
+            href="/settings"
+            className="inline-flex items-center justify-center px-5 py-3 rounded-lg font-medium bg-blue-600 text-white hover:bg-blue-700 transition"
+          >
+            Get started
+          </Link>
+        </div>
         
         <div className="mt-8 grid gap-4">
           {properties.map((p) => (
