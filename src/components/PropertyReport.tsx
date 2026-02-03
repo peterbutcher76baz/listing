@@ -1,3 +1,4 @@
+
 import { Property } from "../schemas/property.schema";
 import { formatArea, formatAUD } from "../utils/conversions";
 

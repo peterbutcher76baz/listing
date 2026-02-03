@@ -2,7 +2,7 @@
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { PropertySchema, Property } from "../../schemas/property.schema";
+import { PropertySchema, Property } from "@/schemas/property.schema";
 
 export default function DataEntryPage() {
   const { register, handleSubmit, formState: { errors } } = useForm<Property>({
@@ -11,6 +11,7 @@ export default function DataEntryPage() {
       source: "Manual",
       dataConfidence: 5,
       createdAt: new Date(),
+      propertyId: "",
       address: {
         StreetNumber: "",
         StreetName: "",
@@ -19,8 +20,9 @@ export default function DataEntryPage() {
         PostalCode: "",
         Country: "AU",
       },
+      improvements: {},
       land: {},
-    }
+    },
   });
 
   const onSubmit = (data: Property) => {
@@ -31,7 +33,7 @@ export default function DataEntryPage() {
   return (
     <div className="p-6 max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">New Listing Entry</h1>
-      
+
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {/* Basic Info Section */}
         <section className="p-4 border rounded-md">
@@ -46,11 +48,10 @@ export default function DataEntryPage() {
         {/* Improvements Section - Note: User inputs SqM, we handle conversion later */}
         <section className="p-4 border rounded-md">
           <h2 className="font-semibold mb-3">Property Features</h2>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <input type="number" {...register("improvements.BedroomsTotal", { valueAsNumber: true })} placeholder="Beds" className="border p-2" />
             <input type="number" {...register("improvements.BathroomsFull", { valueAsNumber: true })} placeholder="Baths" className="border p-2" />
             <input type="number" {...register("improvements.LivingArea", { valueAsNumber: true })} placeholder="Living Area (sqft)" className="border p-2" />
-            <input type="number" {...register("land.LotSizeSquareFeet", { valueAsNumber: true })} placeholder="Land Area (sqft)" className="border p-2" />
           </div>
         </section>
 

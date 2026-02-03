@@ -25,3 +25,15 @@ export async function getAgentProperties(agentEmail: string) {
     return [];
   }
 }
+
+export async function getPropertyById(id: string) {
+  try {
+    const row = await db.query.properties.findFirst({
+      where: eq(properties.id, id),
+    });
+    return row ?? null;
+  } catch (error) {
+    console.error("Failed to fetch property:", error);
+    return null;
+  }
+}
