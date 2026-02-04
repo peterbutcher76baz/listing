@@ -17,30 +17,40 @@ export const agents = pgTable("agents", {
 });
 
 // --- PROPERTIES TABLE ---
+// RISO data dictionary v2.0: BedCount (bedrooms), BathCount (bathrooms), list price (P), living area (A)
 export const properties = pgTable("properties", {
   id: uuid("id").primaryKey().defaultRandom(),
-  // FILE 45: Linking the property to the agent
   agentId: uuid("agent_id").references(() => agents.id),
 
   address: text("address").notNull(),
   suburb: text("suburb").notNull(),
   postcode: text("postcode").notNull(),
-  propertyType: text("property_type").notNull(), // e.g., House, Unit
-  bedrooms: integer("bedrooms"),
-  bathrooms: integer("bathrooms"),
+  propertyType: text("property_type").notNull(),
+  bedCount: integer("bed_count"),   // Standard Name: bedrooms
+  bathCount: integer("bath_count"), // Standard Name: bathrooms
   carSpaces: integer("car_spaces"),
 
-  status: text("status").default("Draft"), // Draft, Published, Archived
+  listPrice: decimal("list_price", { precision: 14, scale: 2 }), // List price (P)
+  livingArea: integer("living_area"), // Living area (A) in sqm
+
+  status: text("status").default("Draft"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Only columns that exist in Neon: id, agent_id, address, suburb, postcode, bedrooms
 export const selectPropertySchema = createSelectSchema(properties).pick({
   id: true,
   agentId: true,
   address: true,
   suburb: true,
   postcode: true,
-  bedrooms: true,
+  propertyType: true,
+  bedCount: true,
+  bathCount: true,
+  carSpaces: true,
+  status: true,
+  listPrice: true,
+  livingArea: true,
+  createdAt: true,
+  updatedAt: true,
 });

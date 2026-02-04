@@ -4,10 +4,22 @@ import { db } from "@/db";
 import { properties, agents } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
-// Only columns that exist in Neon: id, agent_id, address, suburb, postcode, bedrooms
 type AgentProperty = Pick<
   typeof properties.$inferSelect,
-  "id" | "agentId" | "address" | "suburb" | "postcode" | "bedrooms"
+  | "id"
+  | "agentId"
+  | "address"
+  | "suburb"
+  | "postcode"
+  | "propertyType"
+  | "bedCount"
+  | "bathCount"
+  | "carSpaces"
+  | "status"
+  | "listPrice"
+  | "livingArea"
+  | "createdAt"
+  | "updatedAt"
 >;
 
 const propertySelection = {
@@ -16,7 +28,15 @@ const propertySelection = {
   address: properties.address,
   suburb: properties.suburb,
   postcode: properties.postcode,
-  bedrooms: properties.bedrooms,
+  propertyType: properties.propertyType,
+  bedCount: properties.bedCount,
+  bathCount: properties.bathCount,
+  carSpaces: properties.carSpaces,
+  status: properties.status,
+  listPrice: properties.listPrice,
+  livingArea: properties.livingArea,
+  createdAt: properties.createdAt,
+  updatedAt: properties.updatedAt,
 };
 
 export async function getAgentProperties(agentEmail: string): Promise<AgentProperty[]> {

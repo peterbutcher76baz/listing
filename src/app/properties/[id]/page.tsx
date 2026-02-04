@@ -31,7 +31,9 @@ export default async function PropertyDetailPage({
           </h1>
           <p className="text-slate-500 mt-1">{property.postcode}</p>
           <p className="text-xl font-semibold text-blue-700 mt-2">
-            Price on request
+            {property.listPrice
+              ? `$${Number(property.listPrice).toLocaleString()}`
+              : "Price on request"}
           </p>
         </header>
 
@@ -49,7 +51,9 @@ export default async function PropertyDetailPage({
               Key specs
             </h2>
             <ul className="space-y-1 text-sm text-slate-600">
-              <li>Bedrooms: {property.bedrooms ?? "—"}</li>
+              <li>Bedrooms: {property.bedCount ?? "—"}</li>
+              <li>Bathrooms: {property.bathCount ?? "—"}</li>
+              <li>Living area: {property.livingArea ? `${property.livingArea} m²` : "—"}</li>
             </ul>
           </div>
         </section>

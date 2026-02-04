@@ -30,9 +30,11 @@ async function main() {
       suburb: "Palmerston North",
       postcode: "4410",
       propertyType: "House",
-      bedrooms: 4,
-      bathrooms: 2,
+      bedCount: 4,
+      bathCount: 2,
       carSpaces: 2,
+      listPrice: "850000",
+      livingArea: 180,
     },
     {
       agentId: newAgent.id,
@@ -40,9 +42,11 @@ async function main() {
       suburb: "Sydney",
       postcode: "2000",
       propertyType: "Unit",
-      bedrooms: 2,
-      bathrooms: 1,
+      bedCount: 2,
+      bathCount: 1,
       carSpaces: 1,
+      listPrice: "650000",
+      livingArea: 95,
     },
   ]);
 

@@ -1,10 +1,9 @@
-
 'use client';
 
 import React, { useState } from "react";
-// Path 1: Looking in app/components
+// Change this line to match the file name exactly
 import DashboardShell from "@/components/layout/dashboard-shell";
-// Path 2: Looking in the standard components folder (dropping the /app)
+
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
