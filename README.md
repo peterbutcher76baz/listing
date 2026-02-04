@@ -23,7 +23,7 @@ While data is stored in **RESO 2.0 standard (Imperial/SqFt)** for interoperabili
 ## 🚀 Getting Started
 1. **Environment:** Copy `.env.example` to `.env` and add your `DATABASE_URL`.
 2. **Install:** `npm install`
-3. **Database:** `npx drizzle-kit push` to sync the RESO 2.0 schema.
+3. **Database:** Run `npm run db:push` to sync the schema (or `npm run db:migrate` to apply migrations). This creates the `property_analysis` table required for AI vendor strategies.
 4. **Test Guardrails:** `npm run test:guardrails` to verify schema snapshots.
 
 ## 📁 Project Structure

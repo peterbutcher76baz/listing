@@ -41,19 +41,28 @@ const propertySelection = {
 
 export async function getAgentProperties(agentEmail: string): Promise<AgentProperty[]> {
   try {
-    // 1. Find Chris by his email
     const agent = await db.query.agents.findFirst({
       where: eq(agents.email, agentEmail),
     });
 
     if (!agent) return [];
 
-    // 2. Fetch all properties linked to Chris
     const data = await db
       .select(propertySelection)
       .from(properties)
       .where(eq(properties.agentId, agent.id));
 
+    return data as AgentProperty[];
+  } catch (error) {
+    console.error("Failed to fetch properties:", error);
+    return [];
+  }
+}
+
+/** Fetch all properties (Riso-compliant schema) for gallery. */
+export async function getAllProperties(): Promise<AgentProperty[]> {
+  try {
+    const data = await db.select(propertySelection).from(properties);
     return data as AgentProperty[];
   } catch (error) {
     console.error("Failed to fetch properties:", error);

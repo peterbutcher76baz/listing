@@ -17,7 +17,7 @@ export const agents = pgTable("agents", {
 });
 
 // --- PROPERTIES TABLE ---
-// RISO data dictionary v2.0: BedCount (bedrooms), BathCount (bathrooms), list price (P), living area (A)
+// RESO (Real Estate Standards Organisation) data dictionary: BedCount, BathCount, list price, living area
 export const properties = pgTable("properties", {
   id: uuid("id").primaryKey().defaultRandom(),
   agentId: uuid("agent_id").references(() => agents.id),
@@ -53,4 +53,16 @@ export const selectPropertySchema = createSelectSchema(properties).pick({
   livingArea: true,
   createdAt: true,
   updatedAt: true,
+});
+
+// --- PROPERTY ANALYSIS TABLE ---
+// Permanent auditable record for AI-generated vendor strategies (RESO-compliant property data).
+// If the app fails with "property_analysis table missing", run: npx drizzle-kit push (with DATABASE_URL set).
+export const propertyAnalysis = pgTable("property_analysis", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  propertyId: uuid("property_id").references(() => properties.id).notNull(),
+  type: text("type").notNull().default("vendor_strategy"), // e.g. vendor_strategy
+  content: text("content").notNull(), // Strategy text / JSON
+  metadata: jsonb("metadata").default(null), // Optional: model, tokens, etc.
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });

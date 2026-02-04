@@ -15,6 +15,13 @@
       "when": 1738656000000,
       "tag": "0002_riso_v2_properties",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1738800000000,
+      "tag": "0003_property_analysis",
+      "breakpoints": true
     }
   ]
 }
