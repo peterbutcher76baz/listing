@@ -2,27 +2,28 @@
 
 import React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   Home,
-  Building2,
-  MessageSquare,
-  PieChart,
+  Mic,
+  FileText,
   Settings,
   LogOut,
 } from "lucide-react";
+
+const navItems = [
+  { href: "/", icon: Home, label: "Dashboard" },
+  { href: "/voice-training", icon: Mic, label: "Voice Training" },
+  { href: "/dataentry", icon: FileText, label: "Listing Generator" },
+  { href: "/settings", icon: Settings, label: "Settings" },
+] as const;
 
 export default function DashboardShell({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const menuItems = [
-    { icon: <Home size={20} />, label: "Overview", active: true },
-    { icon: <Building2 size={20} />, label: "Properties", active: false },
-    { icon: <MessageSquare size={20} />, label: "AI Chats", active: false },
-    { icon: <PieChart size={20} />, label: "Reports", active: false },
-    { icon: <Settings size={20} />, label: "Settings", active: false },
-  ];
+  const pathname = usePathname();
 
   return (
     <div className="flex h-screen bg-background">
@@ -33,23 +34,27 @@ export default function DashboardShell({
         </div>
 
         <nav className="flex-1 px-4 space-y-2 mt-4">
-          {menuItems.map((item) => (
-            <button
-              key={item.label}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
-                item.active
-                  ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              }`}
-            >
-              {item.icon}
-              <span className="font-medium">{item.label}</span>
-            </button>
-          ))}
+          {navItems.map(({ href, icon: Icon, label }) => {
+            const active = pathname === href || (href !== "/" && pathname.startsWith(href));
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors font-sans ${
+                  active
+                    ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                }`}
+              >
+                <Icon size={20} />
+                <span className="font-medium">{label}</span>
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="p-4 border-t border-sidebar-border">
-          <button className="flex items-center space-x-3 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent px-4 py-2 w-full rounded-lg transition-colors">
+          <button className="flex items-center space-x-3 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent px-4 py-2 w-full rounded-lg transition-colors font-sans">
             <LogOut size={18} />
             <span>Sign Out</span>
           </button>

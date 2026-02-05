@@ -9,8 +9,8 @@ const publicSans = Public_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Your signature voice, AI-powered",
-  description: "Listing copy in your voice, powered by AI.",
+  title: "RealInfo — Agent Command Centre",
+  description: "Infosource · RealInfo. Your signature voice, AI-powered. RESO-compliant listing tools for agents.",
 };
 
 export default function RootLayout({

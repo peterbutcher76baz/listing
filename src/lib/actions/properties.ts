@@ -59,7 +59,7 @@ export async function getAgentProperties(agentEmail: string): Promise<AgentPrope
   }
 }
 
-/** Fetch all properties (Riso-compliant schema) for gallery. */
+/** Fetch all properties (RESO-compliant schema) for gallery. */
 export async function getAllProperties(): Promise<AgentProperty[]> {
   try {
     const data = await db.select(propertySelection).from(properties);

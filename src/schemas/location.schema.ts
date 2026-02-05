@@ -16,6 +16,6 @@ export const AddressSchema = z.object({
 export const ZoningSchema = z.object({
   Zoning: z.string().optional().describe("RESO 2.0: The local zoning code"),
   ZoningDescription: z.string().optional(),
-  HeritageOverlayY/N: z.boolean().optional(), // Standard RESO Boolean suffix
+  HeritageOverlayYN: z.boolean().optional(), // Standard RESO Boolean suffix
   FloodZone: z.string().optional()
 });

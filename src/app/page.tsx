@@ -69,7 +69,7 @@ export default async function Page() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex-1 space-y-3 px-4 pb-2 pt-3">
-                  {/* Beds, baths, cars — Riso spec sits neatly below header */}
+                  {/* Beds, baths, cars — RESO spec sits neatly below header */}
                   
                   <div className="flex flex-wrap gap-2">
                     {p.bedCount != null && (

@@ -182,7 +182,7 @@ export default async function PropertyDetailPage({
               <input type="hidden" name="propertyId" value={property.id} />
               <Button
                 type="submit"
-                className="bg-[#007BFF] hover:bg-[#007BFF]/90 font-sans font-medium text-white"
+                className="h-[48px] w-[200px] bg-[#003366] hover:bg-[#003366]/90 font-sans font-medium text-white"
               >
                 Generate Vendor Strategy
               </Button>
