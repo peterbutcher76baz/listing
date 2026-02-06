@@ -7,12 +7,14 @@ import {
   Home,
   Mic,
   FileText,
+  PenLine,
   Settings,
   LogOut,
 } from "lucide-react";
 
 const navItems = [
   { href: "/", icon: Home, label: "Dashboard" },
+  { href: "/property-entry", icon: PenLine, label: "Property Entry" },
   { href: "/voice-training", icon: Mic, label: "Voice Training" },
   { href: "/dataentry", icon: FileText, label: "Listing Generator" },
   { href: "/settings", icon: Settings, label: "Settings" },
