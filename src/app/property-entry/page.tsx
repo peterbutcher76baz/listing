@@ -51,7 +51,8 @@ export default function PropertyEntryPage() {
     },
   });
 
-  const onSaveOnly = useCallback(
+  /** Save to Zustand store and show notification. Used by form submit (Save property). */
+  const onSubmit = useCallback(
     (data: Property) => {
       setPropertyData(data);
       setSaveNotification(true);
@@ -60,6 +61,7 @@ export default function PropertyEntryPage() {
     [setPropertyData]
   );
 
+  /** Save to Zustand store and navigate to listing generator. Validation runs via handleSubmit. */
   const onSaveAndGoToGenerator = useCallback(
     (data: Property) => {
       setPropertyData(data);
@@ -95,7 +97,7 @@ export default function PropertyEntryPage() {
         </header>
 
         <form
-          onSubmit={handleSubmit(onSaveOnly)}
+          onSubmit={handleSubmit(onSubmit)}
           className="mt-6 space-y-6"
           noValidate
         >

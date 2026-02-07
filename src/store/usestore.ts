@@ -26,8 +26,10 @@ export const usePropertyStore = create<PropertyStore>()(
       partialize: (state) => ({ propertyData: state.propertyData }),
       onRehydrateStorage: () => (state, err) => {
         if (err) console.warn("[real-state-dash-info-dot-volt] rehydration error", err);
+        // Mark hydrated when rehydration finishes (or when there was nothing to rehydrate)
         usePropertyStore.getState().setHasHydrated(true);
       },
+      skipHydration: false,
     }
   )
 );
