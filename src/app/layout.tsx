@@ -11,7 +11,7 @@ const publicSans = Public_Sans({
 
 export const metadata: Metadata = {
   title: "RealInfo — Agent Command Centre",
-  description: "Infosource · RealInfo. Your signature voice, AI-powered. RESO-compliant listing tools for agents.",
+  description: "Infosource.com.au · RealInfo. RESO-compliant listing generator, property gallery, and vendor strategy tools for agents.",
 };
 
 export default function RootLayout({

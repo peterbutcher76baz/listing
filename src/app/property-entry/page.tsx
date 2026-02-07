@@ -1,17 +1,35 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import DashboardShell from "@/components/layout/dashboard-shell";
 import { PropertySchema, Property } from "@/schemas/property.schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { usePropertyEntry } from "@/contexts/listing-context";
+import { usePropertyStore, useStoreHydrated } from "@/store/usestore";
+
+const LISTING_GENERATOR_PATH = "/dataentry";
+const HYDRATION_TIMEOUT_MS = 50;
 
 export default function PropertyEntryPage() {
-  const { setProperty } = usePropertyEntry();
+  const router = useRouter();
+  const hydrated = useStoreHydrated();
+  const setPropertyData = usePropertyStore((s) => s.setPropertyData);
+  const [saveNotification, setSaveNotification] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [hydrationTimeout, setHydrationTimeout] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    const t = setTimeout(() => setHydrationTimeout(true), HYDRATION_TIMEOUT_MS);
+    return () => clearTimeout(t);
+  }, [mounted]);
 
   const { register, handleSubmit, formState: { errors } } = useForm<Property>({
     resolver: zodResolver(PropertySchema),
@@ -33,12 +51,34 @@ export default function PropertyEntryPage() {
     },
   });
 
-  const onSubmit = useCallback(
+  const onSaveOnly = useCallback(
     (data: Property) => {
-      setProperty(data);
+      setPropertyData(data);
+      setSaveNotification(true);
+      setTimeout(() => setSaveNotification(false), 3000);
     },
-    [setProperty]
+    [setPropertyData]
   );
+
+  const onSaveAndGoToGenerator = useCallback(
+    (data: Property) => {
+      setPropertyData(data);
+      router.push(LISTING_GENERATOR_PATH);
+    },
+    [setPropertyData, router]
+  );
+
+  const canRender = mounted && (hydrated || hydrationTimeout);
+
+  if (!canRender) {
+    return (
+      <DashboardShell>
+        <div className="mx-auto max-w-2xl flex items-center justify-center py-12 text-muted-foreground font-sans text-sm">
+          Loading…
+        </div>
+      </DashboardShell>
+    );
+  }
 
   return (
     <DashboardShell>
@@ -54,7 +94,11 @@ export default function PropertyEntryPage() {
           </div>
         </header>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-6">
+        <form
+          onSubmit={handleSubmit(onSaveOnly)}
+          className="mt-6 space-y-6"
+          noValidate
+        >
           <Card className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
             <CardHeader className="rounded-t-lg border-b border-border bg-primary/5 px-6 py-4">
               <CardTitle className="text-base font-bold text-card-foreground font-sans">
@@ -148,6 +192,15 @@ export default function PropertyEntryPage() {
             </CardContent>
           </Card>
 
+          {saveNotification && (
+            <div
+              role="status"
+              className="rounded-md border border-[#003366] bg-[#003366]/10 px-4 py-2 text-sm font-sans text-[#003366]"
+            >
+              Data saved.
+            </div>
+          )}
+
           <div className="flex flex-wrap items-center gap-3">
             <Button
               type="submit"
@@ -155,15 +208,14 @@ export default function PropertyEntryPage() {
             >
               Save property
             </Button>
-            <Link href="/dataentry">
-              <Button
-                type="button"
-                variant="outline"
-                className="h-[48px] w-[200px] rounded-md border-2 border-[#003366] bg-transparent font-sans font-medium text-[#003366] hover:bg-[#003366]/5"
-              >
-                Go to Listing Generator
-              </Button>
-            </Link>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleSubmit(onSaveAndGoToGenerator)}
+              className="h-[48px] w-[200px] rounded-md border-2 border-[#003366] bg-transparent font-sans font-medium text-[#003366] hover:bg-[#003366]/5"
+            >
+              Go to Listing Generator
+            </Button>
           </div>
         </form>
       </div>

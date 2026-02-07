@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useCallback, useState } from "react";
 import type { Property } from "@/schemas/property.schema";
+import { usePropertyStore } from "@/store/usestore";
 
 export const ANTIPODEAN_STYLES = [
   { id: "coastal", label: "Coastal" },
@@ -46,13 +47,19 @@ function loadVoiceFromStorage(): VoiceSettings {
   }
 }
 
-export function ListingProviders({ children }: { children: React.ReactNode }) {
-  const [property, setPropertyState] = useState<Property | null>(null);
-  const [voice, setVoiceState] = useState<VoiceSettings>(loadVoiceFromStorage);
+function PropertyEntryBridge({ children }: { children: React.ReactNode }) {
+  const propertyData = usePropertyStore((s) => s.propertyData);
+  const setPropertyData = usePropertyStore((s) => s.setPropertyData);
+  const setProperty = useCallback((p: Property | null) => setPropertyData(p), [setPropertyData]);
+  return (
+    <PropertyEntryContext.Provider value={{ property: propertyData, setProperty }}>
+      {children}
+    </PropertyEntryContext.Provider>
+  );
+}
 
-  const setProperty = useCallback((p: Property | null) => {
-    setPropertyState(p);
-  }, []);
+export function ListingProviders({ children }: { children: React.ReactNode }) {
+  const [voice, setVoiceState] = useState<VoiceSettings>(loadVoiceFromStorage);
 
   const setVoice = useCallback((v: VoiceSettings | ((prev: VoiceSettings) => VoiceSettings)) => {
     setVoiceState((prev) => {
@@ -64,11 +71,11 @@ export function ListingProviders({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <PropertyEntryContext.Provider value={{ property, setProperty }}>
+    <PropertyEntryBridge>
       <VoiceSettingsContext.Provider value={{ voice, setVoice }}>
         {children}
       </VoiceSettingsContext.Provider>
-    </PropertyEntryContext.Provider>
+    </PropertyEntryBridge>
   );
 }
 

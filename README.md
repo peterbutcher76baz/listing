@@ -1,6 +1,6 @@
 # RealInfo — Listing Report Generator (RESO-compliant)
 
-**Infosource** is the company name; **RealInfo** is the registered trading name for all real estate agent software tools (including this one).
+**Infosource** (Infosource.com.au) is the company name; **RealInfo** is the registered trading name for all real estate agent software tools, including this suite.
 
 **RESO** = Real Estate Standards Organisation (industry-standard data dictionary). All data is RESO-compliant.
 

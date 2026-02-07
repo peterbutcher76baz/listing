@@ -3,10 +3,10 @@ import { z } from "zod";
 
 export const AddressSchema = z.object({
   StreetNumber: z.string(),
-  StreetName: z.string(),
+  StreetName: z.string().min(1, "Street name is required"),
   UnitNumber: z.string().optional(),
-  City: z.string(),           // RESO 2.0 uses 'City' instead of 'locality'
-  StateOrProvince: z.string(), // RESO 2.0 standard
+  City: z.string().min(1, "City is required"),
+  StateOrProvince: z.string(),
   PostalCode: z.string(),
   Country: z.string(),
   Latitude: z.number().optional(),
