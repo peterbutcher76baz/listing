@@ -1,6 +1,6 @@
 
 import { Property } from "../schemas/property.schema";
-import { formatArea, formatAUD } from "../utils/conversions";
+import { formatAreaSqm, formatAUD } from "../utils/conversions";
 
 interface Props {
   property: Property;
@@ -34,7 +34,7 @@ export const PropertyReport = ({ property }: Props) => {
           <ul className="space-y-1 text-sm">
             <li>Bedrooms: {property.improvements?.BedroomsTotal ?? 'N/A'}</li>
             <li>Bathrooms: {property.improvements?.BathroomsFull ?? 'N/A'}</li>
-            <li>Land Area: {formatArea(property.land?.LotSizeSquareFeet)}</li>
+            <li>Land Area: {formatAreaSqm(property.land?.LotSizeSquareMeters)}</li>
           </ul>
         </div>
       </section>

@@ -1,12 +1,9 @@
-/** * Constants for AU/RESO localization
- * SQFT to SQM: 1 sqft = 0.092903 sqm 
+/**
+ * Australian market: area in square metres (m²) only.
  */
-export const SQM_CONVERSION_FACTOR = 0.092903;
-
-export const formatArea = (sqft: number | undefined): string => {
-  if (!sqft) return "N/A";
-  const sqm = Math.round(sqft * SQM_CONVERSION_FACTOR);
-  return `${sqm} m²`;
+export const formatAreaSqm = (sqm: number | undefined): string => {
+  if (sqm == null || sqm <= 0) return "N/A";
+  return `${Math.round(sqm)} m²`;
 };
 
 export const formatAUD = (amount: number | undefined): string => {

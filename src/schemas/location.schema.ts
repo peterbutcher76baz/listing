@@ -7,7 +7,10 @@ export const AddressSchema = z.object({
   UnitNumber: z.string().optional(),
   City: z.string().min(1, "City is required"),
   StateOrProvince: z.string(),
-  PostalCode: z.string(),
+  /** Australian market: 4-digit postcode (e.g. 3000). When provided, must be exactly 4 digits. */
+  PostalCode: z
+    .string()
+    .refine((val) => !val || /^\d{4}$/.test(String(val).trim()), { message: "Postal code must be 4 digits" }),
   Country: z.string(),
   Latitude: z.number().optional(),
   Longitude: z.number().optional()

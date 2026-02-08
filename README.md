@@ -20,8 +20,8 @@ This project uses specialized `.cursor/rules` to maintain architectural integrit
 - **UI Logic Lock:** Ensures business logic and database writes stay out of React components.
 
 ## 🇦🇺 Localization Logic
-While data is stored in **RESO 2.0 standard (Imperial/SqFt)** for interoperability, the system uses a centralized conversion layer (`src/utils/conversions.ts`) to display:
-- **Area:** Automated conversion from SqFt to SqM (1 sqft ≈ 0.0929 sqm).
+Australian market: areas are **square metres (m²) only**. No square foot references in the UI or property store.
+- **Area:** All area fields (living, land) use square metres. Formatting via `src/utils/conversions.ts` (`formatAreaSqm`).
 - **Currency:** Standardized `en-AU` formatting for all price fields.
 
 ## 🚀 Getting Started

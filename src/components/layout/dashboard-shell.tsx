@@ -16,7 +16,7 @@ const navItems = [
   { href: "/", icon: Home, label: "Dashboard" },
   { href: "/property-entry", icon: PenLine, label: "Property Entry" },
   { href: "/voice-training", icon: Mic, label: "Voice Training" },
-  { href: "/dataentry", icon: FileText, label: "Listing Generator" },
+  { href: "/property-entry#generator", icon: FileText, label: "Listing Generator" },
   { href: "/settings", icon: Settings, label: "Settings" },
 ] as const;
 

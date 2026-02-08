@@ -16,11 +16,10 @@ export const generateMockProperty = (id: string) => {
     propertyType: "House",
     tenure: "Freehold",
     land: {
-      LotSizeSquareFeet: 6458, // ~600sqm
-      Topography: "Flat"
+      LotSizeSquareMeters: 600,
     },
     improvements: {
-      LivingArea: 2152, // ~200sqm
+      LivingArea: 200,
       BedroomsTotal: 3,
       BathroomsFull: 2,
       CarportSpaces: 2,

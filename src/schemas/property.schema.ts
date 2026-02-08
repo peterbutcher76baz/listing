@@ -2,13 +2,13 @@ import { z } from "zod";
 import { AddressSchema } from "./location.schema";
 
 const ImprovementsSchema = z.object({
-  BedroomsTotal: z.number().int().nonnegative().optional(),
-  BathroomsFull: z.number().int().nonnegative().optional(),
-  LivingArea: z.number().positive().optional(), // RESO 2.0: Living Area (sqft)
+  BedroomsTotal: z.number().int().min(0, "Bedrooms cannot be less than 0").optional(),
+  BathroomsFull: z.number().int().min(0, "Bathrooms cannot be less than 0").optional(),
+  LivingArea: z.number().positive().optional(), // Living area (m²), Australian market
 }).strict().optional();
 
 const LandSchema = z.object({
-  LotSizeSquareFeet: z.number().positive().optional(),
+  LotSizeSquareMeters: z.number().positive().optional(),
 }).strict().optional();
 
 export const propertySchema = z.object({
