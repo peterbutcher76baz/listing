@@ -13,7 +13,11 @@ export const AddressSchema = z.object({
     .refine((val) => !val || /^\d{4}$/.test(String(val).trim()), { message: "Postal code must be 4 digits" }),
   Country: z.string(),
   Latitude: z.number().optional(),
-  Longitude: z.number().optional()
+  Longitude: z.number().optional(),
+  /** RESO 2.0 / location module: primary school catchment (e.g. school name or zone). */
+  PrimarySchoolCatchment: z.string().optional(),
+  /** RESO 2.0 / location module: secondary school catchment. */
+  SecondarySchoolCatchment: z.string().optional(),
 });
 
 export const ZoningSchema = z.object({
@@ -22,3 +26,17 @@ export const ZoningSchema = z.object({
   HeritageOverlayYN: z.boolean().optional(), // Standard RESO Boolean suffix
   FloodZone: z.string().optional()
 });
+
+/** Locations table (3NF): school catchment names and proximity distances. */
+export const locationsTableSchema = z.object({
+  id: z.string().uuid().optional(),
+  propertyId: z.string().uuid(),
+  primarySchoolCatchment: z.string().nullable().optional(),
+  secondarySchoolCatchment: z.string().nullable().optional(),
+  primarySchoolProximity: z.string().nullable().optional(),
+  secondarySchoolProximity: z.string().nullable().optional(),
+  createdAt: z.date().optional(),
+  updatedAt: z.date().optional(),
+}).strict();
+
+export type LocationsTableRow = z.infer<typeof locationsTableSchema>;

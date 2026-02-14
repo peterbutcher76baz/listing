@@ -83,7 +83,7 @@ export async function generateVendorStrategy(propertyId: string): Promise<
         propertyType: properties.propertyType,
         bedCount: properties.bedCount,
         bathCount: properties.bathCount,
-        carSpaces: properties.carSpaces,
+        parkingCount: properties.parkingCount,
         listPrice: properties.listPrice,
         livingArea: properties.livingArea,
       })
@@ -102,7 +102,7 @@ export async function generateVendorStrategy(propertyId: string): Promise<
       propertyType: property.propertyType,
       bedCount: property.bedCount,
       bathCount: property.bathCount,
-      carSpaces: property.carSpaces,
+      carSpaces: property.parkingCount,
       listPrice: property.listPrice != null ? String(property.listPrice) : null,
       livingArea: property.livingArea,
     });

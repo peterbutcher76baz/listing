@@ -10,13 +10,15 @@ import {
   PenLine,
   Settings,
   LogOut,
+  Sparkles,
 } from "lucide-react";
 
 const navItems = [
   { href: "/", icon: Home, label: "Dashboard" },
   { href: "/property-entry", icon: PenLine, label: "Property Entry" },
-  { href: "/voice-training", icon: Mic, label: "Voice Training" },
-  { href: "/property-entry#generator", icon: FileText, label: "Listing Generator" },
+  { href: "/listing-style-selection", icon: Mic, label: "ListingStyleSelection" },
+  { href: "/listing-generator", icon: FileText, label: "Listing Generator" },
+  { href: "/agent-style-training", icon: Sparkles, label: "Agent Style Training" },
   { href: "/settings", icon: Settings, label: "Settings" },
 ] as const;
 
