@@ -7,9 +7,19 @@ import { propertySchema } from "@/schemas/property.schema";
 
 const PERSIST_NAME = "real-state-dash-info-dot-volt";
 
+/**
+ * Store alignment with 3NF: This store holds the composite Property type (address, improvements, identity, etc.).
+ * It maps to the three DB tables (properties, property_features, locations) via propertyToThreeTables() on save.
+ * No separate slices for property_features or locations—the composite Property carries all data for the form/UI.
+ */
+
+type IdentitySlice = NonNullable<Property["identity"]>;
+
 type PropertyStore = {
   propertyData: Property | null;
   setPropertyData: (p: Property | null) => void;
+  /** Merge identity IDs (e.g. from URL sniff) into propertyData; creates minimal property if null. */
+  mergeIdentity: (ids: Partial<IdentitySlice>) => void;
   clearPropertyData: () => void;
   /** Clears propertyData and voiceStyle in one go so persisted storage is updated for a blank slate. */
   clearAll: () => void;
@@ -33,6 +43,23 @@ export const usePropertyStore = create<PropertyStore>()(
     (set) => ({
       propertyData: null,
       setPropertyData: (p) => set({ propertyData: p }),
+      mergeIdentity: (ids) =>
+        set((state) => {
+          const nextIdentity = { ...state.propertyData?.identity, ...ids };
+          if (state.propertyData) {
+            return { propertyData: { ...state.propertyData, identity: nextIdentity } };
+          }
+          const minimal: Property = {
+            propertyId: "",
+            address: { StreetNumber: "", StreetName: "", City: "", StateOrProvince: "", PostalCode: "", Country: "AU" },
+            improvements: {},
+            land: {},
+            OfficialBrand: "Place P",
+            identity: nextIdentity,
+          } as Property;
+          const parsed = propertySchema.safeParse(minimal);
+          return { propertyData: parsed.success ? parsed.data : minimal };
+        }),
       clearPropertyData: () => set({ propertyData: null }),
       clearAll: () => set({ propertyData: null, voiceStyle: null, styleLevel: 50 }),
       voiceStyle: null,

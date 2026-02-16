@@ -146,6 +146,12 @@ export async function saveCompositeProperty(
         listPrice: composite.property.listPrice ?? null,
         livingArea: composite.property.livingArea ?? null,
         officialBrand: composite.property.officialBrand ?? "Place P",
+        corelogicId: composite.property.corelogicId ?? null,
+        reaGroupId: composite.property.reaGroupId ?? null,
+        domainId: composite.property.domainId ?? null,
+        statePropertyId: composite.property.statePropertyId ?? null,
+        lotPlanNumber: composite.property.lotPlanNumber ?? null,
+        agentCrmId: composite.property.agentCrmId ?? null,
         status: composite.property.status ?? "Draft",
       })
       .returning({ id: properties.id });

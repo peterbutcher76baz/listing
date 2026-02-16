@@ -4,23 +4,42 @@ import { useCallback, useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { Building2, MapPin, Clipboard, GraduationCap, BedDouble, Bath, Car, Ruler } from "lucide-react";
 import DashboardShell from "@/components/layout/dashboard-shell";
 import { PropertySchema, Property, PropertyFormInput } from "@/schemas/property.schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { usePropertyStore, useStoreHydrated } from "@/store/usestore";
+import { sniffIds, fetchStateData } from "@/lib/importers/identitySniffer";
 
 const HYDRATION_TIMEOUT_MS = 50;
+
+/** Key features checklist options (saved in store for final report). */
+const KEY_FEATURES_LIST = [
+  "Solar Power",
+  "Swimming pool",
+  "Air conditioning",
+  "Side access",
+  "Fully fenced",
+  "Outdoor entertaining",
+  "Renovated kitchen",
+  "Granny flat potential",
+] as const;
 
 export default function PropertyEntryPage() {
   const router = useRouter();
   const hydrated = useStoreHydrated();
   const propertyData = usePropertyStore((s) => s.propertyData);
   const setPropertyData = usePropertyStore((s) => s.setPropertyData);
+  const mergeIdentity = usePropertyStore((s) => s.mergeIdentity);
   const clearAll = usePropertyStore((s) => s.clearAll);
   const [saveNotification, setSaveNotification] = useState(false);
+  const [importUrl, setImportUrl] = useState("");
   const [mounted, setMounted] = useState(false);
   const [hydrationTimeout, setHydrationTimeout] = useState(false);
+  const [glowRea, setGlowRea] = useState(false);
+  const [glowDomain, setGlowDomain] = useState(false);
   const didHydrateFormFromStore = useRef(false);
 
   useEffect(() => {
@@ -57,44 +76,364 @@ export default function PropertyEntryPage() {
     land: {},
   };
 
-  const { register, handleSubmit, formState: { errors }, reset, watch, setValue } = useForm<PropertyFormInput>({
+  const { register, handleSubmit, formState: { errors }, reset, watch, setValue, getValues } = useForm<PropertyFormInput>({
     resolver: zodResolver(PropertySchema),
     defaultValues: defaultFormValues,
   });
 
+  const streetNumber = watch("address.StreetNumber") ?? "";
+  const streetName = watch("address.StreetName") ?? "";
+  const city = watch("address.City") ?? "";
+  const stateOrProvince = watch("address.StateOrProvince") ?? "";
+  const postalCode = watch("address.PostalCode") ?? "";
   const garageCount = watch("improvements.GarageCount") ?? 0;
   const carportCount = watch("improvements.CarportCount") ?? 0;
   const totalCarSpaces = garageCount + carportCount;
+  const bedrooms = watch("improvements.BedroomsTotal") ?? 0;
+  const bathrooms = watch("improvements.BathroomsFull") ?? 0;
+  const landAreaSqm = watch("land.LotSizeSquareMeters");
+
+  /** Expand street abbreviations for exact search (e.g. St → Street) so QLD GLOBE returns one result. */
+  const expandStreetSuffix = useCallback((name: string): string => {
+    if (!name?.trim()) return name ?? "";
+    const trimmed = name.trim();
+    const suffixMap: Record<string, string> = {
+      " St ": " Street ", " St.": " Street", " St": " Street",
+      " Rd ": " Road ", " Rd.": " Road", " Rd": " Road",
+      " Ave ": " Avenue ", " Ave.": " Avenue", " Ave": " Avenue",
+      " Dr ": " Drive ", " Dr.": " Drive", " Dr": " Drive",
+      " Pl ": " Place ", " Pl.": " Place", " Pl": " Place",
+      " Ct ": " Court ", " Ct.": " Court", " Ct": " Court",
+      " Pde ": " Parade ", " Pde.": " Parade", " Pde": " Parade",
+      " Crs ": " Crescent ", " Crs.": " Crescent", " Crs": " Crescent",
+      " Tce ": " Terrace ", " Tce.": " Terrace", " Tce": " Terrace",
+      " Pkwy ": " Parkway ", " Pkwy.": " Parkway", " Pkwy": " Parkway",
+      " Hwy ": " Highway ", " Hwy.": " Highway", " Hwy": " Highway",
+      " Cct ": " Circuit ", " Cct.": " Circuit", " Cct": " Circuit",
+      " Cl ": " Close ", " Cl.": " Close", " Cl": " Close",
+      " Bvd ": " Boulevard ", " Bvd.": " Boulevard", " Bvd": " Boulevard",
+    };
+    let out = ` ${trimmed} `;
+    for (const [abbr, full] of Object.entries(suffixMap)) {
+      out = out.replace(new RegExp(abbr.replace(".", "\\."), "gi"), full);
+    }
+    return out.trim();
+  }, []);
+
+  /** Exact address for map search: number + street name (expanded) + suburb — reduces multiple pins. */
+  const getExactAddressForSearch = useCallback(() => {
+    const num = (streetNumber ?? "").toString().trim();
+    const street = expandStreetSuffix((streetName ?? "").toString());
+    const suburb = (city ?? "").toString().trim();
+    const parts = [num, street, suburb].filter(Boolean);
+    return parts.join(" ") || "";
+  }, [streetNumber, streetName, city, expandStreetSuffix]);
+
+  /** Build single-line address from form for clipboard / QLD GLOBE. */
+  const getCurrentAddressLine = useCallback(() => {
+    const parts = [streetNumber, streetName, city, stateOrProvince, postalCode].filter(Boolean);
+    return parts.join(", ") || "";
+  }, [streetNumber, streetName, city, stateOrProvince, postalCode]);
+
+  const toastStyle = {
+    backgroundColor: "#E3F2FD",
+    color: "#1e293b",
+    border: "1px solid #1565C0",
+  } as const;
+
+  /** Copy exact address, show toast, open QLD Globe. Format: number + street + suburb for top result. */
+  const handleQldGlobe = useCallback(async () => {
+    const address = getExactAddressForSearch();
+    if (address) {
+      try {
+        await navigator.clipboard.writeText(address);
+        toast.success("Search ready, exact address copied. Click search • Paste • Select the top result.", {
+          icon: <MapPin className="size-5 shrink-0" />,
+          style: toastStyle,
+        });
+      } catch {
+        toast.error("Could not copy address");
+      }
+    } else {
+      toast.info("Enter street number, street name and suburb first, then use QLD GLOBE.");
+    }
+    window.open("https://qldglobe.information.qld.gov.au/", "_blank", "noopener,noreferrer");
+  }, [getExactAddressForSearch]);
+
+  /** BCC toast: 8s, clipboard icon, pale blue + deep navy. Shown when BCC Dev.i or City Plan need manual paste. */
+  const bccToastStyle = {
+    backgroundColor: "#E3F2FD",
+    color: "#003366",
+    border: "1px solid #1565C0",
+  } as const;
+  const bccToastMessage =
+    "Address copied to clipboard. Once the BCC page loads, click the search bar and press Cmd+V or Ctrl+V.";
+
+  /** Copy exact address, show toast (8s), open BCC Development.i for development applications. */
+  const handleBccDevelopmenti = useCallback(async () => {
+    const address = getExactAddressForSearch();
+    if (address) {
+      try {
+        await navigator.clipboard.writeText(address);
+        toast.success(bccToastMessage, {
+          duration: 8000,
+          icon: <Clipboard className="size-5 shrink-0" />,
+          style: bccToastStyle,
+        });
+      } catch {
+        toast.error("Could not copy address");
+      }
+    } else {
+      toast.info("Enter street number, street name and suburb first.");
+    }
+    window.open("https://developmenti.brisbane.qld.gov.au/", "_blank", "noopener,noreferrer");
+  }, [getExactAddressForSearch]);
+
+  const EDMAP_URL = "https://www.qgso.qld.gov.au/maps/edmap/";
+  /** Copy address → pale blue/navy toast 8s → wait 3s → open QGSO Edmap. User: click Search → paste → confirm school catchments. */
+  const handleCheckCatchmentEdmap = useCallback(async () => {
+    const address = getCurrentAddressLine();
+    if (address) {
+      try {
+        await navigator.clipboard.writeText(address);
+        toast.success("Address copied. In 3 seconds Edmap will open — then click Search, paste, and confirm school catchments.", {
+          duration: 8000,
+          icon: <Clipboard className="size-5 shrink-0" />,
+          style: { backgroundColor: "#E3F2FD", color: "#003366", border: "1px solid #1565C0" },
+        });
+        setTimeout(() => {
+          window.open(EDMAP_URL, "_blank", "noopener,noreferrer");
+        }, 3000);
+      } catch {
+        toast.error("Could not copy address");
+      }
+    } else {
+      toast.info("Enter address first, then use Check Catchment Edmap.");
+    }
+  }, [getCurrentAddressLine]);
+
+  /** Toggle a key feature in the store (array of selected labels). */
+  const toggleKeyFeature = useCallback(
+    (feature: string) => {
+      const current = propertyData?.keyFeatures ?? [];
+      const next = current.includes(feature)
+        ? current.filter((f) => f !== feature)
+        : [...current, feature];
+      if (propertyData) {
+        setPropertyData({ ...propertyData, keyFeatures: next });
+      } else {
+        const minimal: Property = {
+          propertyId: "",
+          createdAt: new Date(),
+          address: { StreetNumber: "", StreetName: "", City: "", StateOrProvince: "", PostalCode: "", Country: "AU" },
+          improvements: {},
+          land: {},
+          OfficialBrand: "Place P",
+          identity: {},
+          keyFeatures: next,
+          ParkingCount: 0,
+          parkingMetadata: { GarageCount: 0, CarportCount: 0 },
+        };
+        setPropertyData(minimal);
+      }
+    },
+    [propertyData, setPropertyData]
+  );
+
+  /** Copy exact address, show toast (8s), open BCC City Plan. Same workflow as Dev.i. */
+  const handleBccCityPlan = useCallback(
+    async (e: React.MouseEvent) => {
+      e.preventDefault();
+      const address = getExactAddressForSearch();
+      if (address) {
+        try {
+          await navigator.clipboard.writeText(address);
+          toast.success(bccToastMessage, {
+            duration: 8000,
+            icon: <Clipboard className="size-5 shrink-0" />,
+            style: bccToastStyle,
+          });
+        } catch {
+          toast.error("Could not copy address");
+        }
+      } else {
+        toast.info("Enter street number, street name and suburb first.");
+      }
+      window.open("https://cityplan.brisbane.qld.gov.au", "_blank", "noopener,noreferrer");
+    },
+    [getExactAddressForSearch]
+  );
   const workshopAlcove = watch("improvements.WorkshopAlcove") ?? false;
   const standaloneShed = watch("improvements.StandaloneShed") ?? false;
   const standaloneShedBays = watch("improvements.StandaloneShedBays") ?? 0;
   /** Total lock-up garages beyond SLUG/DLUG (0 when garageCount is 0, 1, or 2). */
   const totalBeyondSlugDlug = Math.max(0, garageCount - 2);
 
-  /** Save to Zustand store and show notification. zodResolver passes transformed Property. */
+  /** Save to Zustand store and show notification. Preserve identity vault (e.g. sniffed REA/Domain IDs). */
   const onSubmit = useCallback(
     (data: Property) => {
-      setPropertyData(data);
+      setPropertyData({
+        ...data,
+        identity: data.identity ?? propertyData?.identity ?? undefined,
+      });
       setSaveNotification(true);
       setTimeout(() => setSaveNotification(false), 3000);
     },
-    [setPropertyData]
+    [setPropertyData, propertyData?.identity]
   );
 
-  /** Save to Zustand store and navigate to Listing Generator. zodResolver passes transformed Property. */
+  /** Save to Zustand store and navigate to Listing Generator. Preserve identity vault. */
   const onSaveAndGoToGenerator = useCallback(
     (data: Property) => {
-      setPropertyData(data);
+      setPropertyData({
+        ...data,
+        identity: data.identity ?? propertyData?.identity ?? undefined,
+      });
       router.push("/listing-generator");
     },
-    [setPropertyData, router]
+    [setPropertyData, propertyData?.identity, router]
   );
 
   /** Clears both the Zustand store (and persisted vault) and all UI fields for a blank slate. */
   const handleClearForm = useCallback(() => {
     clearAll();
     reset(defaultFormValues);
+    setImportUrl("");
   }, [clearAll, reset]);
+
+  /**
+   * When REA or Domain listing API is available: capture property latitude and longitude here
+   * (e.g. from listing geo data) and merge into identity for distance calculations (e.g. to
+   * nearest major shopping centre). Example: mergeIdentity({ latitude: -27.5, longitude: 153.0 });
+   */
+  const runImportFromUrl = useCallback(
+    (url: string) => {
+      fetchStateData();
+      const ids = sniffIds(url);
+      if (!ids.reaGroupId && !ids.domainId) return;
+      mergeIdentity({
+        ...(ids.reaGroupId && { reaGroupId: ids.reaGroupId }),
+        ...(ids.domainId && { domainId: ids.domainId }),
+      });
+      if (ids.reaGroupId) {
+        const current = usePropertyStore.getState().propertyData;
+        if (current) setPropertyData({ ...current, OfficialBrand: "Place" });
+      }
+      if (ids.reaGroupId) {
+        setGlowRea(true);
+        setTimeout(() => setGlowRea(false), 1000);
+      }
+      if (ids.domainId) {
+        setGlowDomain(true);
+        setTimeout(() => setGlowDomain(false), 1000);
+      }
+      const parts: string[] = [];
+      if (ids.reaGroupId) parts.push("REA ID synced to vault");
+      if (ids.domainId) parts.push("Domain ID synced to vault");
+      const message = parts.length
+        ? `Identity hook found. ${parts.join(". ")}.${ids.reaGroupId ? " Place." : ""}`
+        : "";
+      if (message)
+        toast.success(message, {
+          icon: <Building2 className="size-5 shrink-0" />,
+          style: {
+            backgroundColor: "#E3F2FD",
+            color: "#1e293b",
+            border: "1px solid #1565C0",
+          },
+        });
+    },
+    [mergeIdentity, setPropertyData]
+  );
+
+  /** Run on Import button or blur. */
+  const handleImportFromUrl = useCallback(() => {
+    runImportFromUrl(importUrl);
+    setImportUrl("");
+  }, [importUrl, runImportFromUrl]);
+
+  /** Format lot/plan on blur: uppercase and normalize "5 on Sp123" → "5/Sp123". */
+  const handleLotPlanBlur = useCallback(
+    (e: React.FocusEvent<HTMLInputElement>) => {
+      const raw = (e.target.value ?? "").trim();
+      if (!raw) return;
+      const withSlash = raw.replace(/\s+on\s+/gi, "/");
+      const formatted = withSlash.toUpperCase();
+      mergeIdentity({ lotPlanNumber: formatted });
+    },
+    [mergeIdentity]
+  );
+
+  /** Run immediately when user pastes into the quick import box. */
+  const handlePasteImport = useCallback(
+    (e: React.ClipboardEvent<HTMLInputElement>) => {
+      const text = e.clipboardData.getData("text");
+      if (text?.trim()) {
+        runImportFromUrl(text);
+        setImportUrl(text);
+      }
+    },
+    [runImportFromUrl]
+  );
+
+  /** Build summary string and copy to clipboard for CRM/email. Uses getState() and getValues() at click time so we always have the latest. */
+  const handleCopySummary = useCallback(async () => {
+    const store = usePropertyStore.getState();
+    const data = store.propertyData;
+    const identity = data?.identity;
+
+    // Address: read form at click time (getValues) then fall back to store
+    const formValues = getValues();
+    const formAddr = formValues?.address;
+    const formAddressLine = [
+      formAddr?.StreetNumber,
+      formAddr?.StreetName,
+      formAddr?.City,
+      formAddr?.StateOrProvince,
+      formAddr?.PostalCode,
+    ]
+      .filter(Boolean)
+      .map(String)
+      .join(", ")
+      .trim();
+    const storeAddr = data?.address;
+    const storeAddressLine = [
+      storeAddr?.StreetNumber,
+      storeAddr?.StreetName,
+      storeAddr?.City,
+      storeAddr?.StateOrProvince,
+      storeAddr?.PostalCode,
+    ]
+      .filter(Boolean)
+      .map(String)
+      .join(", ")
+      .trim();
+    const address = (formAddressLine || storeAddressLine || "").trim();
+    const addressDisplay = address || "-";
+
+    // Identity: exact store field names (reaGroupId, domainId, lotPlanNumber). Use dash when empty for clean output.
+    const reaID = (identity?.reaGroupId ?? "").toString().trim() || "-";
+    const domainID = (identity?.domainId ?? "").toString().trim() || "-";
+    const lotPlan = (identity?.lotPlanNumber ?? "").toString().trim() || "-";
+
+    console.log("Current state: ", [address, reaID, domainID, lotPlan]);
+
+    // Place professional style: address as plain text (no extra brackets), then REA, DOM, Lot. Empty = dash.
+    const line = `${addressDisplay} | REA: ${reaID} | DOM: ${domainID} | Lot: ${lotPlan}`;
+    try {
+      await navigator.clipboard.writeText(line);
+      toast.success("Summary copied to CRM/Email", {
+        icon: <Clipboard className="size-5 shrink-0" />,
+        style: {
+          backgroundColor: "#E3F2FD",
+          color: "#003366",
+          border: "1px solid #1565C0",
+        },
+      });
+    } catch {
+      toast.error("Could not copy summary");
+    }
+  }, [getValues]);
 
   const canRender = mounted && (hydrated || hydrationTimeout);
 
@@ -123,20 +462,20 @@ export default function PropertyEntryPage() {
   return (
     <DashboardShell>
       <div className="mx-auto max-w-2xl">
-        <header className="overflow-hidden rounded-lg border border-border bg-primary text-primary-foreground shadow-sm">
-          <div className="px-6 py-5 flex items-start justify-between gap-4">
+        <header className="overflow-hidden rounded-lg border border-border bg-card shadow-sm border-t-2 border-t-[#007BFF]">
+          <div className="rounded-t-lg px-6 py-5 flex items-start justify-between gap-4 bg-[#E3F2FD]/30">
             <div>
-              <h1 className="text-xl font-bold tracking-tight font-sans sm:text-2xl">
+              <h1 className="text-xl font-bold tracking-tight font-sans sm:text-2xl text-[#003366]">
                 Property Entry
               </h1>
-              <p className="mt-1 text-sm font-normal text-primary-foreground/80 font-sans">
+              <p className="mt-1 text-sm font-normal text-[#455A64] font-sans">
                 RESO-compliant property data. Factual only — no style or voice.
               </p>
             </div>
             <button
               type="button"
               onClick={handleClearForm}
-              className="shrink-0 rounded-md border border-primary-foreground/30 bg-transparent px-3 py-2 text-sm font-sans font-medium text-primary-foreground/90 hover:bg-primary-foreground/10 focus:outline-none focus:ring-2 focus:ring-primary-foreground/40"
+              className="shrink-0 rounded-md border border-[#455A64] bg-transparent px-3 py-2 text-sm font-sans font-medium text-[#455A64] hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-[#455A64]/40"
             >
               Clear form
             </button>
@@ -148,9 +487,252 @@ export default function PropertyEntryPage() {
           className="mt-6 space-y-6"
           noValidate
         >
-          <Card className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+          <Card className="overflow-hidden rounded-lg border border-border bg-card shadow-sm border-t-[2px] border-t-dashed border-t-[#FFD700]">
+            <CardHeader className="rounded-t-lg border-b border-border bg-[#E3F2FD]/30 px-6 py-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <CardTitle className="text-base font-bold text-[#003366] font-sans">
+                    Quick import
+                  </CardTitle>
+                  <p className="text-sm text-[#455A64] font-sans mt-1">
+                    Paste a realestate.com.au or domain.com.au listing URL to fill REA ID and Domain ID into the identity vault.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCopySummary}
+                  className="shrink-0 rounded-md border border-[#003366]/30 bg-[#E3F2FD] text-[#003366] hover:bg-[#BBDEFB] font-sans font-medium text-sm"
+                >
+                  Copy summary
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="px-6 py-5 space-y-3">
+              <div className="flex rounded-md border border-border bg-card focus-within:ring-2 focus-within:ring-[#003366] focus-within:border-[#003366] overflow-hidden">
+                <input
+                  type="url"
+                  value={importUrl}
+                  onChange={(e) => setImportUrl(e.target.value)}
+                  onPaste={handlePasteImport}
+                  onBlur={handleImportFromUrl}
+                  placeholder="https://realestate.com.au/... or https://domain.com.au/..."
+                  className="flex-1 min-w-0 border-0 rounded-none px-3 py-2 text-sm font-sans text-[#003366] bg-transparent focus:outline-none focus:ring-0 placeholder:text-[#455A64]"
+                  aria-label="Paste listing URL to import IDs"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleImportFromUrl}
+                  className="shrink-0 rounded-none border-0 border-l border-border bg-[#E3F2FD] text-[#003366] hover:bg-[#BBDEFB] font-sans font-medium"
+                >
+                  Scan
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-border">
+                <div className="min-w-0 flex-1">
+                  <label className="text-xs font-medium text-[#455A64] font-sans block mb-1">REA ID</label>
+                  <input
+                    type="text"
+                    value={propertyData?.identity?.reaGroupId ?? ""}
+                    onChange={(e) => mergeIdentity({ reaGroupId: e.target.value || undefined })}
+                    placeholder="—"
+                    className={`w-full border rounded-md px-3 py-2 text-sm font-sans text-[#003366] bg-[#E3F2FD] focus:outline-none focus:ring-2 focus:ring-[#003366] transition-shadow duration-300 ${glowRea ? "shadow-[0_0_0_2px_#2E7D32]" : "border-border"}`}
+                    aria-label="REA Group ID"
+                  />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <label className="text-xs font-medium text-[#455A64] font-sans block mb-1">Domain ID</label>
+                  <input
+                    type="text"
+                    value={propertyData?.identity?.domainId ?? ""}
+                    onChange={(e) => mergeIdentity({ domainId: e.target.value || undefined })}
+                    placeholder="—"
+                    className={`w-full border rounded-md px-3 py-2 text-sm font-sans text-[#003366] bg-[#E3F2FD] focus:outline-none focus:ring-2 focus:ring-[#003366] transition-shadow duration-300 ${glowDomain ? "shadow-[0_0_0_2px_#2E7D32]" : "border-border"}`}
+                    aria-label="Domain ID"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="overflow-hidden rounded-lg border border-border bg-card shadow-sm border-t-2 border-t-[#007BFF]">
             <CardHeader className="rounded-t-lg border-b border-border bg-primary/5 px-6 py-4">
-              <CardTitle className="text-base font-bold text-card-foreground font-sans">
+              <CardTitle className="text-base font-bold text-[#003366] font-sans">
+                Location intelligence
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-6 py-5 space-y-3">
+              <div className="flex items-center gap-3 flex-nowrap">
+                <div className="flex-1 min-w-0">
+                  <label className="text-xs font-medium text-[#455A64] font-sans block mb-1">Lot / plan number</label>
+                  <input
+                    type="text"
+                    value={propertyData?.identity?.lotPlanNumber ?? ""}
+                    onChange={(e) => mergeIdentity({ lotPlanNumber: e.target.value || undefined })}
+                    onBlur={handleLotPlanBlur}
+                    placeholder="e.g. 5 on Sp123 or 1/RP12345"
+                    className="w-full border border-border rounded-md px-3 py-2 text-sm font-sans text-card-foreground bg-card focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                    aria-label="Lot plan number"
+                  />
+                </div>
+                <div className="shrink-0 flex items-center gap-1.5 pt-6">
+                  <span className="inline-flex rounded border-2 border-[#FFD700] bg-[#FFD700]/5">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleQldGlobe}
+                      className="border-0 bg-transparent text-[#003366] hover:bg-[#FFD700]/20 font-sans font-medium h-8 px-2.5 text-xs"
+                    >
+                      <MapPin className="mr-1 size-3.5" />
+                      QLD GLOBE
+                    </Button>
+                  </span>
+                  <span className="inline-flex rounded border-2 border-[#FFD700] bg-[#FFD700]/5">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleBccDevelopmenti}
+                      className="border-0 bg-transparent text-[#003366] hover:bg-[#FFD700]/20 font-sans font-medium h-8 px-2.5 text-xs"
+                    >
+                      BCC Dev.i
+                    </Button>
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleBccCityPlan}
+                className="text-xs font-sans text-[#007BFF] hover:underline bg-transparent border-0 cursor-pointer p-0"
+              >
+                Brisbane City Plan →
+              </button>
+
+              <div className="pt-4 border-t border-border">
+                <h3 className="text-base font-bold text-[#003366] font-sans mb-3">Community amenities</h3>
+                <div className="grid grid-cols-1 gap-3">
+                  <div className="flex items-center gap-3 flex-nowrap">
+                    <div className="flex-1 min-w-0">
+                      <label className="text-xs font-medium text-[#455A64] font-sans block mb-1">School catchment</label>
+                      <input
+                        type="text"
+                        value={propertyData?.identity?.schoolCatchment ?? ""}
+                        onChange={(e) => mergeIdentity({ schoolCatchment: e.target.value || undefined })}
+                        placeholder="e.g. Polara State School, Forest Lake High School"
+                        className="w-full border border-border rounded-md px-3 py-2 text-sm font-sans text-[#003366] bg-[#E3F2FD] focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                        aria-label="School catchment (comma-separated for multiple schools)"
+                      />
+                      <p className="text-[10px] text-[#455A64] font-sans mt-0.5">Multiple schools: separate with commas.</p>
+                    </div>
+                    <span className="inline-flex shrink-0 items-center pt-6">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCheckCatchmentEdmap}
+                        className="border-2 border-[#FFD700] bg-transparent text-[#003366] hover:bg-[#FFD700]/20 font-sans font-medium h-8 px-2.5 text-xs"
+                      >
+                        Check Catchment Edmap
+                      </Button>
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 flex-nowrap">
+                    <div className="flex-1 min-w-0">
+                      <label className="text-xs font-medium text-[#455A64] font-sans block mb-1">Nearest major shopping centre</label>
+                      <input
+                        type="text"
+                        value={propertyData?.identity?.shoppingCentre ?? ""}
+                        onChange={(e) => mergeIdentity({ shoppingCentre: e.target.value || undefined })}
+                        placeholder="e.g. Forest Lake Town Centre"
+                        className="w-full border border-border rounded-md px-3 py-2 text-sm font-sans text-[#003366] bg-[#E3F2FD] focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                        aria-label="Nearest major shopping centre"
+                      />
+                      <div className="flex items-center gap-2 mt-1">
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={propertyData?.identity?.shoppingCentreDistanceKm ?? ""}
+                          onChange={(e) => {
+                            const v = e.target.value.trim();
+                            mergeIdentity({ shoppingCentreDistanceKm: v ? (Number(v) || v) : undefined });
+                          }}
+                          placeholder="Distance (km)"
+                          className="w-24 border border-border rounded-md px-2 py-1.5 text-sm font-sans text-[#003366] bg-[#E3F2FD] focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                          aria-label="Distance to shopping centre in km"
+                        />
+                        <span className="text-[10px] text-[#455A64] font-sans">km</span>
+                      </div>
+                    </div>
+                    <span className="inline-flex shrink-0 items-center pt-6">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="border-2 border-[#FFD700] bg-transparent text-[#003366] hover:bg-[#FFD700]/20 font-sans font-medium h-8 px-2.5 text-xs"
+                      >
+                        Scout location
+                      </Button>
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 flex-nowrap">
+                    <div className="flex-1 min-w-0">
+                      <label className="text-xs font-medium text-[#455A64] font-sans block mb-1">Public transport</label>
+                      <input
+                        type="text"
+                        value={propertyData?.identity?.publicTransport ?? ""}
+                        onChange={(e) => mergeIdentity({ publicTransport: e.target.value || undefined })}
+                        placeholder="—"
+                        className="w-full border border-border rounded-md px-3 py-2 text-sm font-sans text-[#003366] bg-[#E3F2FD] focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                        aria-label="Public transport"
+                      />
+                    </div>
+                    <span className="inline-flex shrink-0 items-center pt-6">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="border-2 border-[#FFD700] bg-transparent text-[#003366] hover:bg-[#FFD700]/20 font-sans font-medium h-8 px-2.5 text-xs"
+                      >
+                        Scout location
+                      </Button>
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 flex-nowrap">
+                    <div className="flex-1 min-w-0">
+                      <label className="text-xs font-medium text-[#455A64] font-sans block mb-1">Suggested catchment</label>
+                      <input
+                        type="text"
+                        readOnly
+                        value={propertyData?.identity?.suggestedCatchment ?? ""}
+                        placeholder="pending geodata"
+                        className="w-full border border-border rounded-md px-3 py-2 text-sm font-sans text-[#003366] bg-[#E3F2FD] focus:outline-none cursor-default"
+                        aria-label="Suggested catchment (from future script)"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 flex-nowrap">
+                    <div className="flex-1 min-w-0">
+                      <label className="text-xs font-medium text-[#455A64] font-sans block mb-1">Estimated drive to shops</label>
+                      <input
+                        type="text"
+                        readOnly
+                        value={propertyData?.identity?.estimatedDriveToShops ?? ""}
+                        placeholder="pending geodata"
+                        className="w-full border border-border rounded-md px-3 py-2 text-sm font-sans text-[#003366] bg-[#E3F2FD] focus:outline-none cursor-default"
+                        aria-label="Estimated drive to shops (from future script)"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="overflow-hidden rounded-lg border border-border bg-card shadow-sm border-t-2 border-t-[#007BFF]">
+            <CardHeader className="rounded-t-lg border-b border-border bg-primary/5 px-6 py-4">
+              <CardTitle className="text-base font-bold text-[#003366] font-sans">
                 Address (RESO 2.0)
               </CardTitle>
             </CardHeader>
@@ -204,9 +786,9 @@ export default function PropertyEntryPage() {
             </CardContent>
           </Card>
 
-          <Card className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+          <Card className="overflow-hidden rounded-lg border border-border bg-card shadow-sm border-t-2 border-t-[#007BFF]">
             <CardHeader className="rounded-t-lg border-b border-border bg-primary/5 px-6 py-4">
-              <CardTitle className="text-base font-bold text-card-foreground font-sans">
+              <CardTitle className="text-base font-bold text-[#003366] font-sans">
                 Property Features
               </CardTitle>
             </CardHeader>
@@ -246,9 +828,39 @@ export default function PropertyEntryPage() {
             </CardContent>
           </Card>
 
-          <Card className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+          <Card className="overflow-hidden rounded-lg border border-border bg-card shadow-sm border-t-2 border-t-[#007BFF]">
             <CardHeader className="rounded-t-lg border-b border-border bg-primary/5 px-6 py-4">
-              <CardTitle className="text-base font-bold text-card-foreground font-sans">
+              <CardTitle className="text-base font-bold text-[#003366] font-sans">
+                Key Features
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-6 py-5">
+              <div className="grid grid-cols-3 gap-4">
+                {KEY_FEATURES_LIST.map((feature) => {
+                  const selected = (propertyData?.keyFeatures ?? []).includes(feature);
+                  return (
+                    <label
+                      key={feature}
+                      className="flex items-center gap-2 cursor-pointer font-sans text-sm text-[#003366]"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => toggleKeyFeature(feature)}
+                        className="size-4 rounded border-2 border-[#007BFF] bg-white text-[#007BFF] focus:ring-2 focus:ring-[#007BFF] focus:ring-offset-0 accent-[#007BFF]"
+                        aria-label={feature}
+                      />
+                      <span>{feature}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="overflow-hidden rounded-lg border border-border bg-card shadow-sm border-t-2 border-t-[#007BFF]">
+            <CardHeader className="rounded-t-lg border-b border-border bg-primary/5 px-6 py-4">
+              <CardTitle className="text-base font-bold text-[#003366] font-sans">
                 Garage, Car Ports and Workshops
               </CardTitle>
             </CardHeader>
@@ -480,8 +1092,132 @@ export default function PropertyEntryPage() {
               Go to Listing Generator
             </Button>
           </div>
+
+          {/* Live report preview — syncs with form and store. Print-only: Export PDF prints just this card. */}
+          <style dangerouslySetInnerHTML={{ __html: `
+            @media print {
+              body * { visibility: hidden; }
+              .report-preview-print, .report-preview-print * { visibility: visible; }
+              .report-preview-print { position: absolute; left: 0; top: 0; width: 100%; max-width: 100%; }
+            }
+          `}} />
+          <div className="flex justify-end no-print">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => window.print()}
+              className="rounded-md border-2 border-[#003366] bg-white font-sans font-medium text-[#003366] hover:bg-[#003366]/5"
+            >
+              Export PDF
+            </Button>
+          </div>
+          <ReportPreview
+            addressLine={[streetNumber, streetName, city, stateOrProvince, postalCode].filter(Boolean).join(", ") || "—"}
+            bedrooms={bedrooms}
+            bathrooms={bathrooms}
+            carSpaces={totalCarSpaces}
+            landAreaSqm={landAreaSqm}
+            keyFeatures={propertyData?.keyFeatures ?? []}
+            schoolCatchment={propertyData?.identity?.schoolCatchment ?? ""}
+            shoppingCentre={propertyData?.identity?.shoppingCentre ?? ""}
+            shoppingCentreDistanceKm={propertyData?.identity?.shoppingCentreDistanceKm ?? ""}
+          />
         </form>
       </div>
     </DashboardShell>
+  );
+}
+
+/** Live report preview: property header, property features (beds/baths/cars/land), highlights, education, shopping. Place-branded white card. */
+function ReportPreview({
+  addressLine,
+  bedrooms,
+  bathrooms,
+  carSpaces,
+  landAreaSqm,
+  keyFeatures,
+  schoolCatchment,
+  shoppingCentre,
+  shoppingCentreDistanceKm,
+}: {
+  addressLine: string;
+  bedrooms: number;
+  bathrooms: number;
+  carSpaces: number;
+  landAreaSqm?: number;
+  keyFeatures: string[];
+  schoolCatchment: string;
+  shoppingCentre: string;
+  shoppingCentreDistanceKm: string | number;
+}) {
+  const distanceStr = shoppingCentreDistanceKm != null && String(shoppingCentreDistanceKm).trim() !== ""
+    ? String(shoppingCentreDistanceKm).trim()
+    : null;
+  const iconClass = "size-4 shrink-0 text-[#003366]";
+  return (
+    <Card className="report-preview-print mt-8 overflow-hidden rounded-lg border border-border bg-white shadow-md">
+      <div className="rounded-t-lg border-b border-[#E3F2FD] bg-white px-6 py-4">
+        <h3 className="text-center text-2xl font-bold text-[#003366] font-sans border-b-2 border-[#e3f2fd] pb-2 w-full">Report Preview</h3>
+      </div>
+      <CardHeader className="rounded-none border-b border-border bg-white px-6 py-4">
+        <CardTitle className="text-base font-bold text-[#003366] font-sans">
+          {addressLine}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="px-6 py-5 space-y-4">
+        <section>
+          <h4 className="text-sm font-semibold text-[#003366] font-sans mb-2">Property Features</h4>
+          <ul className="grid grid-cols-2 gap-x-6 gap-y-2 font-sans text-sm text-[#1e293b]">
+            <li className="flex items-center gap-2">
+              <BedDouble className={iconClass} aria-hidden />
+              <span>Bedrooms: {bedrooms ?? "—"}</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <Bath className={iconClass} aria-hidden />
+              <span>Bathrooms: {bathrooms ?? "—"}</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <Car className={iconClass} aria-hidden />
+              <span>Car spaces: {carSpaces ?? "—"}</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <Ruler className={iconClass} aria-hidden />
+              <span>Land area: {landAreaSqm != null && landAreaSqm > 0 ? `${landAreaSqm} m²` : "—"}</span>
+            </li>
+          </ul>
+        </section>
+        {keyFeatures.length > 0 && (
+          <section>
+            <h4 className="text-sm font-semibold text-[#003366] font-sans mb-2">Highlights</h4>
+            <ul className="space-y-1">
+              {keyFeatures.map((feature) => (
+                <li key={feature} className="flex items-center gap-2 font-sans text-sm text-[#1e293b]">
+                  <span className="size-1.5 shrink-0 rounded-full bg-[#007BFF]" aria-hidden />
+                  {feature}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+        <section>
+          <h4 className="text-sm font-semibold text-[#003366] font-sans mb-2 flex items-center gap-2">
+            <GraduationCap className="size-4 text-[#007BFF]" aria-hidden />
+            School Catchment Area
+          </h4>
+          <p className="font-sans text-sm text-[#1e293b]">
+            {schoolCatchment ? schoolCatchment : "—"}
+          </p>
+        </section>
+        {(shoppingCentre || distanceStr) && (
+          <section>
+            <h4 className="text-sm font-semibold text-[#003366] font-sans mb-2">Nearest Major Shopping Centre</h4>
+            <p className="font-sans text-sm text-[#1e293b]">
+              {shoppingCentre || "—"}
+              {distanceStr != null ? ` (${distanceStr} km)` : ""}
+            </p>
+          </section>
+        )}
+      </CardContent>
+    </Card>
   );
 }

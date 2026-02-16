@@ -30,6 +30,26 @@ const LandSchema = z.object({
   LotSizeSquareMeters: z.number().positive().optional(),
 }).strict().optional();
 
+/** External identity hooks for 3NF (corelogic, REA, Domain, state VGID, lot/plan, CRM). */
+/** Community amenities (location intelligence): school catchment, shopping, transport. */
+export const IdentitySchema = z.object({
+  corelogicId: z.string().optional(),
+  reaGroupId: z.string().optional(),
+  domainId: z.string().optional(),
+  statePropertyId: z.string().optional(),
+  lotPlanNumber: z.string().optional(),
+  agentCrmId: z.string().optional(),
+  schoolCatchment: z.string().optional(),
+  shoppingCentre: z.string().optional(),
+  /** Distance to nearest major shopping centre in km (for report and future distance automation). */
+  shoppingCentreDistanceKm: z.union([z.string(), z.number()]).optional(),
+  publicTransport: z.string().optional(),
+  /** Populated by future geo script: suggested school catchment. */
+  suggestedCatchment: z.string().optional(),
+  /** Populated by future geo script: estimated drive to major shops (e.g. "5 km"). */
+  estimatedDriveToShops: z.string().optional(),
+}).strict().optional();
+
 /** Computes total parking count (garage + carport + shed bays) and metadata for DB vs AI. */
 function computeParking(improvements: z.infer<typeof ImprovementsSchema>): {
   ParkingCount: number;
@@ -63,6 +83,10 @@ const propertySchemaBase = z.object({
   createdAt: z.union([z.date(), z.string()]).optional().transform((d) => (d == null ? undefined : typeof d === "string" ? new Date(d) : d)),
   /** RESO 2.0: which brand guidelines the AI follows. Default "Place P". */
   OfficialBrand: z.string().default("Place P"),
+  /** External identity vault (REA, Domain, CoreLogic, state VGID, lot/plan, CRM). */
+  identity: IdentitySchema,
+  /** Key features checklist for final report: Solar Power, Swimming pool, etc. */
+  keyFeatures: z.array(z.string()).optional(),
 }).strip(); // strip computed ParkingCount/parkingMetadata when form re-submits so transform recomputes
 
 /** Property schema with RESO-aligned ParkingCount (DB) and parkingMetadata (AI). */
@@ -98,6 +122,13 @@ export const propertiesTableSchema = z.object({
   listPrice: z.string().nullable().optional(),
   livingArea: z.number().int().positive().nullable().optional(),
   officialBrand: z.string().default("Place P"),
+  /** External identity hooks (nullable). */
+  corelogicId: z.string().nullable().optional(),
+  reaGroupId: z.string().nullable().optional(),
+  domainId: z.string().nullable().optional(),
+  statePropertyId: z.string().nullable().optional(),
+  lotPlanNumber: z.string().nullable().optional(),
+  agentCrmId: z.string().nullable().optional(),
   status: z.string().optional(),
   createdAt: z.date().optional(),
   updatedAt: z.date().optional(),
@@ -139,6 +170,7 @@ export function propertyToThreeTables(property: Property, options?: { agentId?: 
 
   const { ParkingCount } = computeParking(property.improvements);
 
+  const id = property.identity;
   const propertyRow = propertiesTableSchema.parse({
     agentId: options?.agentId ?? null,
     address: addressLine || "—",
@@ -152,6 +184,12 @@ export function propertyToThreeTables(property: Property, options?: { agentId?: 
     parkingCount: ParkingCount,
     livingArea: imp.LivingArea ?? null,
     officialBrand: property.OfficialBrand ?? "Place P",
+    corelogicId: id?.corelogicId ?? null,
+    reaGroupId: id?.reaGroupId ?? null,
+    domainId: id?.domainId ?? null,
+    statePropertyId: id?.statePropertyId ?? null,
+    lotPlanNumber: id?.lotPlanNumber ?? null,
+    agentCrmId: id?.agentCrmId ?? null,
     status: "Draft",
   });
 

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Public_Sans } from "next/font/google";
+import { Toaster } from "sonner";
 import "./globals.css";
 import { ListingProviders } from "@/contexts/listing-context";
 
@@ -23,6 +24,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${publicSans.variable} font-sans antialiased`}>
         <ListingProviders>{children}</ListingProviders>
+        <Toaster position="top-center" richColors closeButton duration={5000} />
       </body>
     </html>
   );

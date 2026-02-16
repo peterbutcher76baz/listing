@@ -7,6 +7,7 @@ import {
   integer,
   decimal,
   boolean,
+  index,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-zod";
@@ -52,10 +53,21 @@ export const properties = pgTable("properties", {
   /** Official brand for AI guidelines. Default Place P. */
   officialBrand: text("official_brand").default("Place P"),
 
+  /** External identity hooks (nullable). */
+  corelogicId: text("corelogic_id"),
+  reaGroupId: text("rea_group_id"),
+  domainId: text("domain_id"),
+  statePropertyId: text("state_property_id"), // VGID
+  lotPlanNumber: text("lot_plan_number"),
+  agentCrmId: text("agent_crm_id"),
+
   status: text("status").default("Draft"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("properties_rea_group_id_idx").on(table.reaGroupId),
+  index("properties_corelogic_id_idx").on(table.corelogicId),
+]);
 
 // --- PROPERTY_FEATURES TABLE (3NF: parking matrix and feature toggles) ---
 /** Detailed parking breakdown and workshop/shed toggles. Linked by propertyId. */
@@ -152,6 +164,12 @@ export const selectPropertySchema = createSelectSchema(properties).pick({
   listPrice: true,
   livingArea: true,
   officialBrand: true,
+  corelogicId: true,
+  reaGroupId: true,
+  domainId: true,
+  statePropertyId: true,
+  lotPlanNumber: true,
+  agentCrmId: true,
   createdAt: true,
   updatedAt: true,
 });
