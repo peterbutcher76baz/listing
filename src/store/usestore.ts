@@ -25,6 +25,12 @@ type PropertyStore = {
   clearAll: () => void;
   voiceStyle: string | null;
   setVoiceStyle: (v: string | null) => void;
+  /** Reference listing text for agent voice training (Voice Profile tab). */
+  agentVoiceReference: string | null;
+  setAgentVoiceReference: (v: string | null) => void;
+  /** Generated AI narrative output, shown in Listing Brief Property Narrative. */
+  propertyNarrative: string | null;
+  setPropertyNarrative: (v: string | null) => void;
   styleLevel: number;
   setStyleLevel: (n: number) => void;
   _hasHydrated: boolean;
@@ -61,9 +67,13 @@ export const usePropertyStore = create<PropertyStore>()(
           return { propertyData: parsed.success ? parsed.data : minimal };
         }),
       clearPropertyData: () => set({ propertyData: null }),
-      clearAll: () => set({ propertyData: null, voiceStyle: null, styleLevel: 50 }),
+      clearAll: () => set({ propertyData: null, voiceStyle: null, agentVoiceReference: null, propertyNarrative: null, styleLevel: 50 }),
       voiceStyle: null,
       setVoiceStyle: (v) => set({ voiceStyle: v }),
+      agentVoiceReference: null,
+      setAgentVoiceReference: (v) => set({ agentVoiceReference: v }),
+      propertyNarrative: null,
+      setPropertyNarrative: (v) => set({ propertyNarrative: v }),
       styleLevel: 50,
       setStyleLevel: (n) => set({ styleLevel: Math.max(0, Math.min(100, n)) }),
       _hasHydrated: false,
@@ -71,7 +81,13 @@ export const usePropertyStore = create<PropertyStore>()(
     }),
     {
       name: PERSIST_NAME,
-      partialize: (state) => ({ propertyData: state.propertyData, voiceStyle: state.voiceStyle, styleLevel: state.styleLevel }),
+      partialize: (state) => ({
+        propertyData: state.propertyData,
+        voiceStyle: state.voiceStyle,
+        agentVoiceReference: state.agentVoiceReference,
+        propertyNarrative: state.propertyNarrative,
+        styleLevel: state.styleLevel,
+      }),
       onRehydrateStorage: () => (state, err) => {
         if (err) console.warn("[real-state-dash-info-dot-volt] rehydration error", err);
         // Normalize propertyData from schema so persisted data has ParkingCount, parkingMetadata, OfficialBrand

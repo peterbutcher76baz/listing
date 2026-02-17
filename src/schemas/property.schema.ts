@@ -38,6 +38,8 @@ export const IdentitySchema = z.object({
   domainId: z.string().optional(),
   statePropertyId: z.string().optional(),
   lotPlanNumber: z.string().optional(),
+  /** Local zoning code (e.g. BCC City Plan). */
+  zoning: z.string().optional(),
   agentCrmId: z.string().optional(),
   schoolCatchment: z.string().optional(),
   shoppingCentre: z.string().optional(),

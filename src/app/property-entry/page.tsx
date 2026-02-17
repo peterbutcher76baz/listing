@@ -5,15 +5,51 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Building2, MapPin, Clipboard, GraduationCap, BedDouble, Bath, Car, Ruler } from "lucide-react";
+import { Building2, MapPin, Clipboard, GraduationCap, BedDouble, Bath, Car, Ruler, Sparkles } from "lucide-react";
 import DashboardShell from "@/components/layout/dashboard-shell";
 import { PropertySchema, Property, PropertyFormInput } from "@/schemas/property.schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { usePropertyStore, useStoreHydrated } from "@/store/usestore";
 import { sniffIds, fetchStateData } from "@/lib/importers/identitySniffer";
 
 const HYDRATION_TIMEOUT_MS = 50;
+
+/** Default reference listing text for agent voice training (Place-branded sample). */
+const NUMIA_PLACE_TEXT =
+  "Nestled in a sought-after location, this property offers the perfect blend of comfort and convenience. Ideally positioned close to schools, shopping, and transport, it presents an exceptional opportunity for families and professionals alike.";
+
+/** Build a property narrative from property data and reference voice. Placeholder until AI integration. */
+function buildPropertyNarrative(
+  addressLine: string,
+  bedrooms: number,
+  bathrooms: number,
+  keyFeatures: string[],
+  schoolCatchment: string,
+  referenceText: string
+): string {
+  const suburb = addressLine.split(",").map((s) => s.trim())[1] ?? "";
+  const parts: string[] = [];
+  if (addressLine) {
+    const intro = referenceText?.trim()
+      ? referenceText.split(/[.!?]/)[0]?.trim() + "."
+      : "Nestled in a sought-after location, this property offers the perfect blend of comfort and convenience.";
+    parts.push(intro);
+  }
+  const specs: string[] = [];
+  if (bedrooms > 0) specs.push(`${bedrooms} bedroom${bedrooms !== 1 ? "s" : ""}`);
+  if (bathrooms > 0) specs.push(`${bathrooms} bathroom${bathrooms !== 1 ? "s" : ""}`);
+  if (specs.length) parts.push(`This ${specs.join(" and ")} home${suburb ? ` in ${suburb}` : ""} presents an exceptional opportunity.`);
+  if (keyFeatures.length) {
+    parts.push(`Key features include ${keyFeatures.slice(0, 4).join(", ")}${keyFeatures.length > 4 ? " and more" : ""}.`);
+  }
+  if (schoolCatchment?.trim()) {
+    parts.push(`Ideally positioned within the catchment for ${schoolCatchment.trim()}.`);
+  }
+  return parts.length ? parts.join(" ") : referenceText?.trim() || NUMIA_PLACE_TEXT;
+}
 
 /** Key features checklist options (saved in store for final report). */
 const KEY_FEATURES_LIST = [
@@ -34,6 +70,10 @@ export default function PropertyEntryPage() {
   const setPropertyData = usePropertyStore((s) => s.setPropertyData);
   const mergeIdentity = usePropertyStore((s) => s.mergeIdentity);
   const clearAll = usePropertyStore((s) => s.clearAll);
+  const agentVoiceReference = usePropertyStore((s) => s.agentVoiceReference);
+  const setAgentVoiceReference = usePropertyStore((s) => s.setAgentVoiceReference);
+  const propertyNarrative = usePropertyStore((s) => s.propertyNarrative);
+  const setPropertyNarrative = usePropertyStore((s) => s.setPropertyNarrative);
   const [saveNotification, setSaveNotification] = useState(false);
   const [importUrl, setImportUrl] = useState("");
   const [mounted, setMounted] = useState(false);
@@ -211,6 +251,36 @@ export default function PropertyEntryPage() {
       toast.info("Enter address first, then use Check Catchment Edmap.");
     }
   }, [getCurrentAddressLine]);
+
+  /** Generate AI narrative from property data and agent voice reference; output flows to Property Narrative. */
+  const handleGenerateNarrative = useCallback(() => {
+    const addressLine = [streetNumber, streetName, city, stateOrProvince, postalCode].filter(Boolean).join(", ");
+    const narrative = buildPropertyNarrative(
+      addressLine,
+      bedrooms ?? 0,
+      bathrooms ?? 0,
+      propertyData?.keyFeatures ?? [],
+      propertyData?.identity?.schoolCatchment ?? "",
+      agentVoiceReference ?? NUMIA_PLACE_TEXT
+    );
+    setPropertyNarrative(narrative);
+    toast.success("Narrative generated. View in Listing Brief tab.", {
+      icon: <Sparkles className="size-5 shrink-0" />,
+      style: { backgroundColor: "#E3F2FD", color: "#003366", border: "1px solid #1565C0" },
+    });
+  }, [
+    streetNumber,
+    streetName,
+    city,
+    stateOrProvince,
+    postalCode,
+    bedrooms,
+    bathrooms,
+    propertyData?.keyFeatures,
+    propertyData?.identity?.schoolCatchment,
+    agentVoiceReference,
+    setPropertyNarrative,
+  ]);
 
   /** Toggle a key feature in the store (array of selected labels). */
   const toggleKeyFeature = useCallback(
@@ -461,7 +531,7 @@ export default function PropertyEntryPage() {
 
   return (
     <DashboardShell>
-      <div className="mx-auto max-w-2xl">
+      <div className="mx-auto w-full max-w-5xl">
         <header className="overflow-hidden rounded-lg border border-border bg-card shadow-sm border-t-2 border-t-[#007BFF]">
           <div className="rounded-t-lg px-6 py-5 flex items-start justify-between gap-4 bg-[#E3F2FD]/30">
             <div>
@@ -487,7 +557,24 @@ export default function PropertyEntryPage() {
           className="mt-6 space-y-6"
           noValidate
         >
-          <Card className="overflow-hidden rounded-lg border border-border bg-card shadow-sm border-t-[2px] border-t-dashed border-t-[#FFD700]">
+          <Tabs defaultValue="property-dna" className="w-full">
+            <TabsList className="w-full justify-start gap-1 rounded-lg border border-border bg-[#E3F2FD]/30 p-1">
+              <TabsTrigger value="property-dna" className="data-[state=active]:bg-[#E3F2FD] data-[state=active]:text-[#003366]">
+                Property DNA
+              </TabsTrigger>
+              <TabsTrigger value="location-intel" className="data-[state=active]:bg-[#E3F2FD] data-[state=active]:text-[#003366]">
+                Location Intel
+              </TabsTrigger>
+              <TabsTrigger value="voice-profile" className="data-[state=active]:bg-[#E3F2FD] data-[state=active]:text-[#003366]">
+                Voice Profile
+              </TabsTrigger>
+              <TabsTrigger value="listing-brief" className="data-[state=active]:bg-[#E3F2FD] data-[state=active]:text-[#003366]">
+                Listing Brief
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="property-dna" className="mt-4 space-y-6 max-w-2xl">
+              <Card className="overflow-hidden rounded-lg border border-border bg-card shadow-sm border-t-[2px] border-t-dashed border-t-[#FFD700]">
             <CardHeader className="rounded-t-lg border-b border-border bg-[#E3F2FD]/30 px-6 py-4">
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -559,11 +646,327 @@ export default function PropertyEntryPage() {
           <Card className="overflow-hidden rounded-lg border border-border bg-card shadow-sm border-t-2 border-t-[#007BFF]">
             <CardHeader className="rounded-t-lg border-b border-border bg-primary/5 px-6 py-4">
               <CardTitle className="text-base font-bold text-[#003366] font-sans">
+                Address (RESO 2.0)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-6 py-5 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <input
+                  {...register("address.StreetNumber")}
+                  placeholder="Street Number"
+                  className="border border-border rounded-md px-3 py-2 text-sm font-sans text-card-foreground bg-[#E3F2FD] focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                />
+                <input
+                  {...register("address.StreetName")}
+                  placeholder="Street Name"
+                  className="border border-border rounded-md px-3 py-2 text-sm font-sans text-card-foreground bg-[#E3F2FD] focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <input
+                  {...register("address.City")}
+                  placeholder="City"
+                  className="border border-border rounded-md px-3 py-2 text-sm font-sans text-card-foreground bg-[#E3F2FD] focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                />
+                <input
+                  {...register("address.StateOrProvince")}
+                  placeholder="State / Province"
+                  className="border border-border rounded-md px-3 py-2 text-sm font-sans text-card-foreground bg-[#E3F2FD] focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <input
+                  {...register("address.PostalCode")}
+                  placeholder="Postal Code"
+                  className="border border-border rounded-md px-3 py-2 text-sm font-sans text-card-foreground bg-[#E3F2FD] focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                />
+                <input
+                  {...register("address.Country")}
+                  placeholder="Country"
+                  className="border border-border rounded-md px-3 py-2 text-sm font-sans text-card-foreground bg-[#E3F2FD] focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                />
+              </div>
+              {errors.address?.StreetName && (
+                <p className="text-destructive text-xs mt-1 font-sans">
+                  {errors.address.StreetName.message}
+                </p>
+              )}
+              {errors.address?.PostalCode && (
+                <p className="text-destructive text-xs mt-1 font-sans">
+                  {errors.address.PostalCode.message}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="overflow-hidden rounded-lg border border-border bg-card shadow-sm border-t-2 border-t-[#007BFF]">
+            <CardHeader className="rounded-t-lg border-b border-border bg-primary/5 px-6 py-4">
+              <CardTitle className="text-base font-bold text-[#003366] font-sans">
+                Property Features
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-6 py-5">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <input
+                  type="number"
+                  min={0}
+                  {...register("improvements.BedroomsTotal", {
+                    setValueAs: (v) =>
+                      v === "" || Number.isNaN(Number(v)) ? undefined : Number(v),
+                  })}
+                  placeholder="Beds"
+                  className="border border-border rounded-md px-3 py-2 text-sm font-sans text-card-foreground bg-[#E3F2FD] focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                />
+                <input
+                  type="number"
+                  min={0}
+                  {...register("improvements.BathroomsFull", {
+                    setValueAs: (v) =>
+                      v === "" || Number.isNaN(Number(v)) ? undefined : Number(v),
+                  })}
+                  placeholder="Baths"
+                  className="border border-border rounded-md px-3 py-2 text-sm font-sans text-card-foreground bg-[#E3F2FD] focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                />
+                <input
+                  type="number"
+                  min={0}
+                  {...register("improvements.LivingArea", {
+                    setValueAs: (v) =>
+                      v === "" || Number.isNaN(Number(v)) ? undefined : Number(v),
+                  })}
+                  placeholder="Living area (m²)"
+                  className="border border-border rounded-md px-3 py-2 text-sm font-sans text-card-foreground bg-[#E3F2FD] focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                />
+                <input
+                  type="number"
+                  min={0}
+                  {...register("land.LotSizeSquareMeters", {
+                    setValueAs: (v) =>
+                      v === "" || Number.isNaN(Number(v)) ? undefined : Number(v),
+                  })}
+                  placeholder="Land (m²)"
+                  className="border border-border rounded-md px-3 py-2 text-sm font-sans text-card-foreground bg-[#E3F2FD] focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="overflow-hidden rounded-lg border border-border bg-card shadow-sm border-t-2 border-t-[#007BFF]">
+            <CardHeader className="rounded-t-lg border-b border-border bg-primary/5 px-6 py-4">
+              <CardTitle className="text-base font-bold text-[#003366] font-sans">
+                Garage, Car Ports and Workshops
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-6 py-5 space-y-4">
+              <input
+                type="hidden"
+                {...register("improvements.GarageCount", {
+                  setValueAs: (v) => (v === "" || Number.isNaN(Number(v)) ? 0 : Number(v)),
+                })}
+              />
+              <input
+                type="hidden"
+                {...register("improvements.CarportCount", {
+                  setValueAs: (v) => (v === "" || Number.isNaN(Number(v)) ? 0 : Number(v)),
+                })}
+              />
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-sm font-medium text-muted-foreground font-sans w-full sm:w-auto">Lock-up garages</span>
+                <div className="flex gap-2">
+                  <div className="group relative inline-block">
+                    <span
+                      role="tooltip"
+                      className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 z-[100] flex flex-col items-center opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                    >
+                      <span
+                        aria-hidden
+                        className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-[#003366] -mb-[5px]"
+                      />
+                      <span className="whitespace-nowrap rounded-md px-3 py-1.5 text-[11px] font-medium font-sans text-white bg-[#003366] shadow-lg">
+                        Single Lock Up Garage
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setValue("improvements.GarageCount", 1, { shouldValidate: true })}
+                      className={`h-10 min-w-[88px] rounded-md border-2 font-sans font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[#003366] focus:ring-offset-2 ${
+                        garageCount === 1
+                          ? "bg-[#003366] border-[#003366] text-white"
+                          : "border-[#003366] bg-transparent text-[#003366] hover:bg-[#003366]/10"
+                      }`}
+                    >
+                      SLUG
+                    </button>
+                  </div>
+                  <div className="group relative inline-block">
+                    <span
+                      role="tooltip"
+                      className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 z-[100] flex flex-col items-center opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                    >
+                      <span
+                        aria-hidden
+                        className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-[#003366] -mb-[5px]"
+                      />
+                      <span className="whitespace-nowrap rounded-md px-3 py-1.5 text-[11px] font-medium font-sans text-white bg-[#003366] shadow-lg">
+                        Double Lock Up Garage
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setValue("improvements.GarageCount", 2, { shouldValidate: true })}
+                      className={`h-10 min-w-[88px] rounded-md border-2 font-sans font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[#003366] focus:ring-offset-2 ${
+                        garageCount === 2
+                          ? "bg-[#003366] border-[#003366] text-white"
+                          : "border-[#003366] bg-transparent text-[#003366] hover:bg-[#003366]/10"
+                      }`}
+                    >
+                      DLUG
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-3 text-left">
+                <span className="text-sm text-muted-foreground font-sans">Total lock-up garages (beyond SLUG/DLUG)</span>
+                <div className="flex items-center gap-2 rounded-md border border-border bg-muted/30 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setValue("improvements.GarageCount", Math.max(0, garageCount - 1), { shouldValidate: true })}
+                    className="h-8 w-8 rounded border border-[#003366] bg-transparent text-[#003366] font-sans font-medium hover:bg-[#003366]/10 focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                    aria-label="Decrease total lock-up garages beyond SLUG/DLUG"
+                  >
+                    −
+                  </button>
+                  <span className="min-w-[1.5rem] text-center text-sm font-sans text-card-foreground" aria-live="polite">
+                    {totalBeyondSlugDlug}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setValue("improvements.GarageCount", garageCount + 1, { shouldValidate: true })}
+                    className="h-8 w-8 rounded border border-[#003366] bg-transparent text-[#003366] font-sans font-medium hover:bg-[#003366]/10 focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                    aria-label="Increase total lock-up garages beyond SLUG/DLUG"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-sm text-muted-foreground font-sans">Car port / covered spaces</span>
+                <div className="flex items-center gap-2 rounded-md border border-border bg-muted/30 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setValue("improvements.CarportCount", Math.max(0, carportCount - 1), { shouldValidate: true })}
+                    className="h-8 w-8 rounded border border-[#003366] bg-transparent text-[#003366] font-sans font-medium hover:bg-[#003366]/10 focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                    aria-label="Decrease car port spaces"
+                  >
+                    −
+                  </button>
+                  <span className="min-w-[1.5rem] text-center text-sm font-sans text-card-foreground" aria-live="polite">
+                    {carportCount}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setValue("improvements.CarportCount", carportCount + 1, { shouldValidate: true })}
+                    className="h-8 w-8 rounded border border-[#003366] bg-transparent text-[#003366] font-sans font-medium hover:bg-[#003366]/10 focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                    aria-label="Increase car port spaces"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-3 text-left">
+                <div className="group relative inline-block">
+                  <span
+                    role="tooltip"
+                    className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 z-[100] flex flex-col items-center opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                  >
+                    <span className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-[#003366] -mb-[5px]" aria-hidden />
+                    <span className="whitespace-nowrap rounded-md px-3 py-1.5 text-[11px] font-medium font-sans text-white bg-[#003366] shadow-lg">
+                      Internal workshop or storage space associated with the main garage
+                    </span>
+                  </span>
+                  <span className="text-sm text-muted-foreground font-sans">One workshop alcove</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setValue("improvements.WorkshopAlcove", !workshopAlcove, { shouldValidate: true })}
+                  className={`h-10 min-w-[88px] rounded-md border-2 font-sans font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[#003366] focus:ring-offset-2 ${
+                    workshopAlcove ? "bg-[#003366] border-[#003366] text-white" : "border-[#003366] bg-transparent text-[#003366] hover:bg-[#003366]/10"
+                  }`}
+                >
+                  {workshopAlcove ? "Yes" : "No"}
+                </button>
+              </div>
+              <div className="flex flex-col items-start gap-3 text-left">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="group relative inline-block">
+                    <span
+                      role="tooltip"
+                      className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 z-[100] flex flex-col items-center opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                    >
+                      <span className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-[#003366] -mb-[5px]" aria-hidden />
+                      <span className="whitespace-nowrap rounded-md px-3 py-1.5 text-[11px] font-medium font-sans text-white bg-[#003366] shadow-lg">
+                        Detached shed or workshop
+                      </span>
+                    </span>
+                    <span className="text-sm text-muted-foreground font-sans">Standalone shed</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setValue("improvements.StandaloneShed", !standaloneShed, { shouldValidate: true })}
+                    className={`h-10 min-w-[88px] rounded-md border-2 font-sans font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[#003366] focus:ring-offset-2 ${
+                      standaloneShed ? "bg-[#003366] border-[#003366] text-white" : "border-[#003366] bg-transparent text-[#003366] hover:bg-[#003366]/10"
+                    }`}
+                  >
+                    {standaloneShed ? "Yes" : "No"}
+                  </button>
+                </div>
+                {standaloneShed && (
+                  <div className="flex flex-wrap items-center gap-3 w-full">
+                    <span className="text-sm text-muted-foreground font-sans">Number of bays</span>
+                    <div className="flex items-center gap-2 rounded-md border border-border bg-muted/30 p-1">
+                      <button
+                        type="button"
+                        onClick={() => setValue("improvements.StandaloneShedBays", Math.max(0, standaloneShedBays - 1), { shouldValidate: true })}
+                        className="h-8 w-8 rounded border border-[#003366] bg-transparent text-[#003366] font-sans font-medium hover:bg-[#003366]/10 focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                        aria-label="Decrease shed bays"
+                      >
+                        −
+                      </button>
+                      <span className="min-w-[1.5rem] text-center text-sm font-sans text-card-foreground" aria-live="polite">
+                        {standaloneShedBays}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setValue("improvements.StandaloneShedBays", standaloneShedBays + 1, { shouldValidate: true })}
+                        className="h-8 w-8 rounded border border-[#003366] bg-transparent text-[#003366] font-sans font-medium hover:bg-[#003366]/10 focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                        aria-label="Increase shed bays"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <p className="text-sm font-sans text-muted-foreground pt-1 border-t border-border">
+                {totalCarSpaces === 0 ? (
+                  "No covered parking"
+                ) : (
+                  <>Total car spaces: <span className="font-semibold text-[#003366]">{totalCarSpaces}</span></>
+                )}
+              </p>
+            </CardContent>
+          </Card>
+            </TabsContent>
+
+            <TabsContent value="location-intel" className="mt-4 space-y-6 max-w-2xl">
+          <Card className="overflow-hidden rounded-lg border border-border bg-card shadow-sm border-t-2 border-t-[#007BFF]">
+            <CardHeader className="rounded-t-lg border-b border-border bg-primary/5 px-6 py-4">
+              <CardTitle className="text-base font-bold text-[#003366] font-sans">
                 Location intelligence
               </CardTitle>
             </CardHeader>
             <CardContent className="px-6 py-5 space-y-3">
-              <div className="flex items-center gap-3 flex-nowrap">
+                <div className="flex items-center gap-3 flex-nowrap">
                 <div className="flex-1 min-w-0">
                   <label className="text-xs font-medium text-[#455A64] font-sans block mb-1">Lot / plan number</label>
                   <input
@@ -572,7 +975,7 @@ export default function PropertyEntryPage() {
                     onChange={(e) => mergeIdentity({ lotPlanNumber: e.target.value || undefined })}
                     onBlur={handleLotPlanBlur}
                     placeholder="e.g. 5 on Sp123 or 1/RP12345"
-                    className="w-full border border-border rounded-md px-3 py-2 text-sm font-sans text-card-foreground bg-card focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                    className="w-full border border-border rounded-md px-3 py-2 text-sm font-sans text-[#003366] bg-[#E3F2FD] focus:outline-none focus:ring-2 focus:ring-[#003366]"
                     aria-label="Lot plan number"
                   />
                 </div>
@@ -609,6 +1012,17 @@ export default function PropertyEntryPage() {
               >
                 Brisbane City Plan →
               </button>
+              <div className="flex-1 min-w-0">
+                <label className="text-xs font-medium text-[#455A64] font-sans block mb-1">Zoning</label>
+                <input
+                  type="text"
+                  value={propertyData?.identity?.zoning ?? ""}
+                  onChange={(e) => mergeIdentity({ zoning: e.target.value || undefined })}
+                  placeholder="e.g. Low density residential"
+                  className="w-full border border-border rounded-md px-3 py-2 text-sm font-sans text-card-foreground bg-[#E3F2FD] focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                  aria-label="Zoning"
+                />
+              </div>
 
               <div className="pt-4 border-t border-border">
                 <h3 className="text-base font-bold text-[#003366] font-sans mb-3">Community amenities</h3>
@@ -733,104 +1147,6 @@ export default function PropertyEntryPage() {
           <Card className="overflow-hidden rounded-lg border border-border bg-card shadow-sm border-t-2 border-t-[#007BFF]">
             <CardHeader className="rounded-t-lg border-b border-border bg-primary/5 px-6 py-4">
               <CardTitle className="text-base font-bold text-[#003366] font-sans">
-                Address (RESO 2.0)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-6 py-5 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <input
-                  {...register("address.StreetNumber")}
-                  placeholder="Street Number"
-                  className="border border-border rounded-md px-3 py-2 text-sm font-sans text-card-foreground bg-card focus:outline-none focus:ring-2 focus:ring-[#007BFF]"
-                />
-                <input
-                  {...register("address.StreetName")}
-                  placeholder="Street Name"
-                  className="border border-border rounded-md px-3 py-2 text-sm font-sans text-card-foreground bg-card focus:outline-none focus:ring-2 focus:ring-[#007BFF]"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <input
-                  {...register("address.City")}
-                  placeholder="City"
-                  className="border border-border rounded-md px-3 py-2 text-sm font-sans text-card-foreground bg-card focus:outline-none focus:ring-2 focus:ring-[#007BFF]"
-                />
-                <input
-                  {...register("address.StateOrProvince")}
-                  placeholder="State / Province"
-                  className="border border-border rounded-md px-3 py-2 text-sm font-sans text-card-foreground bg-card focus:outline-none focus:ring-2 focus:ring-[#007BFF]"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <input
-                  {...register("address.PostalCode")}
-                  placeholder="Postal Code"
-                  className="border border-border rounded-md px-3 py-2 text-sm font-sans text-card-foreground bg-card focus:outline-none focus:ring-2 focus:ring-[#007BFF]"
-                />
-                <input
-                  {...register("address.Country")}
-                  placeholder="Country"
-                  className="border border-border rounded-md px-3 py-2 text-sm font-sans text-card-foreground bg-card focus:outline-none focus:ring-2 focus:ring-[#007BFF]"
-                />
-              </div>
-              {errors.address?.StreetName && (
-                <p className="text-destructive text-xs mt-1 font-sans">
-                  {errors.address.StreetName.message}
-                </p>
-              )}
-              {errors.address?.PostalCode && (
-                <p className="text-destructive text-xs mt-1 font-sans">
-                  {errors.address.PostalCode.message}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="overflow-hidden rounded-lg border border-border bg-card shadow-sm border-t-2 border-t-[#007BFF]">
-            <CardHeader className="rounded-t-lg border-b border-border bg-primary/5 px-6 py-4">
-              <CardTitle className="text-base font-bold text-[#003366] font-sans">
-                Property Features
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-6 py-5">
-              <div className="grid grid-cols-3 gap-4">
-                <input
-                  type="number"
-                  min={0}
-                  {...register("improvements.BedroomsTotal", {
-                    setValueAs: (v) =>
-                      v === "" || Number.isNaN(Number(v)) ? undefined : Number(v),
-                  })}
-                  placeholder="Beds"
-                  className="border border-border rounded-md px-3 py-2 text-sm font-sans text-card-foreground bg-card focus:outline-none focus:ring-2 focus:ring-[#007BFF]"
-                />
-                <input
-                  type="number"
-                  min={0}
-                  {...register("improvements.BathroomsFull", {
-                    setValueAs: (v) =>
-                      v === "" || Number.isNaN(Number(v)) ? undefined : Number(v),
-                  })}
-                  placeholder="Baths"
-                  className="border border-border rounded-md px-3 py-2 text-sm font-sans text-card-foreground bg-card focus:outline-none focus:ring-2 focus:ring-[#007BFF]"
-                />
-                <input
-                  type="number"
-                  min={0}
-                  {...register("improvements.LivingArea", {
-                    setValueAs: (v) =>
-                      v === "" || Number.isNaN(Number(v)) ? undefined : Number(v),
-                  })}
-                  placeholder="Living area (m²)"
-                  className="border border-border rounded-md px-3 py-2 text-sm font-sans text-card-foreground bg-card focus:outline-none focus:ring-2 focus:ring-[#007BFF]"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="overflow-hidden rounded-lg border border-border bg-card shadow-sm border-t-2 border-t-[#007BFF]">
-            <CardHeader className="rounded-t-lg border-b border-border bg-primary/5 px-6 py-4">
-              <CardTitle className="text-base font-bold text-[#003366] font-sans">
                 Key Features
               </CardTitle>
             </CardHeader>
@@ -857,215 +1173,72 @@ export default function PropertyEntryPage() {
               </div>
             </CardContent>
           </Card>
+            </TabsContent>
 
-          <Card className="overflow-hidden rounded-lg border border-border bg-card shadow-sm border-t-2 border-t-[#007BFF]">
-            <CardHeader className="rounded-t-lg border-b border-border bg-primary/5 px-6 py-4">
-              <CardTitle className="text-base font-bold text-[#003366] font-sans">
-                Garage, Car Ports and Workshops
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-6 py-5 space-y-4">
-              <input
-                type="hidden"
-                {...register("improvements.GarageCount", {
-                  setValueAs: (v) => (v === "" || Number.isNaN(Number(v)) ? 0 : Number(v)),
-                })}
-              />
-              <input
-                type="hidden"
-                {...register("improvements.CarportCount", {
-                  setValueAs: (v) => (v === "" || Number.isNaN(Number(v)) ? 0 : Number(v)),
-                })}
-              />
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="text-sm font-medium text-muted-foreground font-sans w-full sm:w-auto">Lock-up garages</span>
-                <div className="flex gap-2">
-                  <div className="group relative inline-block">
-                    <span
-                      role="tooltip"
-                      className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 z-[100] flex flex-col items-center opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                    >
-                      <span
-                        aria-hidden
-                        className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-[#003366] -mb-[5px]"
-                      />
-                      <span className="whitespace-nowrap rounded-md px-3 py-1.5 text-[11px] font-medium font-sans text-white bg-[#003366] shadow-lg">
-                        Single Lock Up Garage
-                      </span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setValue("improvements.GarageCount", 1, { shouldValidate: true })}
-                      className={`h-10 min-w-[88px] rounded-md border-2 font-sans font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[#003366] focus:ring-offset-2 ${
-                        garageCount === 1
-                          ? "bg-[#003366] border-[#003366] text-white"
-                          : "border-[#003366] bg-transparent text-[#003366] hover:bg-[#003366]/10"
-                      }`}
-                    >
-                      SLUG
-                    </button>
-                  </div>
-                  <div className="group relative inline-block">
-                    <span
-                      role="tooltip"
-                      className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 z-[100] flex flex-col items-center opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                    >
-                      <span
-                        aria-hidden
-                        className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-[#003366] -mb-[5px]"
-                      />
-                      <span className="whitespace-nowrap rounded-md px-3 py-1.5 text-[11px] font-medium font-sans text-white bg-[#003366] shadow-lg">
-                        Double Lock Up Garage
-                      </span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setValue("improvements.GarageCount", 2, { shouldValidate: true })}
-                      className={`h-10 min-w-[88px] rounded-md border-2 font-sans font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[#003366] focus:ring-offset-2 ${
-                        garageCount === 2
-                          ? "bg-[#003366] border-[#003366] text-white"
-                          : "border-[#003366] bg-transparent text-[#003366] hover:bg-[#003366]/10"
-                      }`}
-                    >
-                      DLUG
-                    </button>
-                  </div>
-                </div>
-              </div>
-              {/* Total lock-up garages beyond SLUG/DLUG: from 0, left-aligned */}
-              <div className="flex flex-wrap items-center gap-3 text-left">
-                <span className="text-sm text-muted-foreground font-sans">Total lock-up garages (beyond SLUG/DLUG)</span>
-                <div className="flex items-center gap-2 rounded-md border border-border bg-muted/30 p-1">
-                  <button
+            <TabsContent value="voice-profile" className="mt-4 space-y-6 max-w-2xl">
+              <Card className="overflow-hidden rounded-lg border border-border bg-card shadow-sm border-t-2 border-t-[#007BFF]">
+                <CardHeader className="rounded-t-lg border-b border-border bg-primary/5 px-6 py-4">
+                  <CardTitle className="text-base font-bold text-[#003366] font-sans">
+                    Agent voice training
+                  </CardTitle>
+                  <p className="text-sm text-[#455A64] font-sans mt-1">
+                    Paste a reference listing to train the AI on your preferred tone and style.
+                  </p>
+                </CardHeader>
+                <CardContent className="px-6 py-5 space-y-4">
+                  <Textarea
+                    value={agentVoiceReference ?? NUMIA_PLACE_TEXT}
+                    onChange={(e) => setAgentVoiceReference(e.target.value || null)}
+                    placeholder={NUMIA_PLACE_TEXT}
+                    className="min-h-[200px] w-full border border-border rounded-md px-3 py-2 text-sm font-sans text-[#003366] bg-[#E3F2FD] focus:outline-none focus:ring-2 focus:ring-[#003366] resize-y"
+                    aria-label="Reference listing for voice training (Agent Voice Reference)"
+                  />
+                  <Button
                     type="button"
-                    onClick={() => setValue("improvements.GarageCount", Math.max(0, garageCount - 1), { shouldValidate: true })}
-                    className="h-8 w-8 rounded border border-[#003366] bg-transparent text-[#003366] font-sans font-medium hover:bg-[#003366]/10 focus:outline-none focus:ring-2 focus:ring-[#003366]"
-                    aria-label="Decrease total lock-up garages beyond SLUG/DLUG"
+                    onClick={handleGenerateNarrative}
+                    className="h-12 w-full sm:w-auto min-w-[220px] rounded-md bg-[#003366] font-sans font-medium text-white hover:bg-[#003366]/90 flex items-center justify-center gap-2"
                   >
-                    −
-                  </button>
-                  <span className="min-w-[1.5rem] text-center text-sm font-sans text-card-foreground" aria-live="polite">
-                    {totalBeyondSlugDlug}
-                  </span>
-                  <button
+                    <Sparkles className="size-5 shrink-0" aria-hidden />
+                    Generate AI narrative
+                  </Button>
+                  <p className="text-xs text-[#455A64] font-sans">
+                    The generated narrative will appear in the Property Narrative section of the Listing Brief tab.
+                  </p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="listing-brief" className="mt-4 w-full max-w-full">
+              <div className="space-y-4 w-full max-w-full">
+                <div className="flex justify-end no-print">
+                  <Button
                     type="button"
-                    onClick={() => setValue("improvements.GarageCount", garageCount + 1, { shouldValidate: true })}
-                    className="h-8 w-8 rounded border border-[#003366] bg-transparent text-[#003366] font-sans font-medium hover:bg-[#003366]/10 focus:outline-none focus:ring-2 focus:ring-[#003366]"
-                    aria-label="Increase total lock-up garages beyond SLUG/DLUG"
+                    variant="outline"
+                    onClick={() => window.print()}
+                    className="rounded-md border-2 border-[#003366] bg-white font-sans font-medium text-[#003366] hover:bg-[#003366]/5"
                   >
-                    +
-                  </button>
+                    Export PDF
+                  </Button>
                 </div>
+                <ReportPreview
+                  addressLine={[streetNumber, streetName, city, stateOrProvince, postalCode].filter(Boolean).join(", ") || ""}
+                  bedrooms={bedrooms}
+                  bathrooms={bathrooms}
+                  carSpaces={totalCarSpaces}
+                  landAreaSqm={landAreaSqm}
+                  keyFeatures={propertyData?.keyFeatures ?? []}
+                  schoolCatchment={propertyData?.identity?.schoolCatchment ?? ""}
+                  shoppingCentre={propertyData?.identity?.shoppingCentre ?? ""}
+                  shoppingCentreDistanceKm={propertyData?.identity?.shoppingCentreDistanceKm ?? ""}
+                  lotPlanNumber={propertyData?.identity?.lotPlanNumber ?? ""}
+                  zoning={propertyData?.identity?.zoning ?? ""}
+                  reaGroupId={propertyData?.identity?.reaGroupId ?? ""}
+                  domainId={propertyData?.identity?.domainId ?? ""}
+                  propertyNarrative={propertyNarrative ?? ""}
+                />
               </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="text-sm text-muted-foreground font-sans">Car port / covered spaces</span>
-                <div className="flex items-center gap-2 rounded-md border border-border bg-muted/30 p-1">
-                  <button
-                    type="button"
-                    onClick={() => setValue("improvements.CarportCount", Math.max(0, carportCount - 1), { shouldValidate: true })}
-                    className="h-8 w-8 rounded border border-[#003366] bg-transparent text-[#003366] font-sans font-medium hover:bg-[#003366]/10 focus:outline-none focus:ring-2 focus:ring-[#003366]"
-                    aria-label="Decrease car port spaces"
-                  >
-                    −
-                  </button>
-                  <span className="min-w-[1.5rem] text-center text-sm font-sans text-card-foreground" aria-live="polite">
-                    {carportCount}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setValue("improvements.CarportCount", carportCount + 1, { shouldValidate: true })}
-                    className="h-8 w-8 rounded border border-[#003366] bg-transparent text-[#003366] font-sans font-medium hover:bg-[#003366]/10 focus:outline-none focus:ring-2 focus:ring-[#003366]"
-                    aria-label="Increase car port spaces"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-              {/* Workshop alcove: internal workshop/storage with main garage */}
-              <div className="flex flex-wrap items-center gap-3 text-left">
-                <div className="group relative inline-block">
-                  <span
-                    role="tooltip"
-                    className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 z-[100] flex flex-col items-center opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                  >
-                    <span className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-[#003366] -mb-[5px]" aria-hidden />
-                    <span className="whitespace-nowrap rounded-md px-3 py-1.5 text-[11px] font-medium font-sans text-white bg-[#003366] shadow-lg">
-                      Internal workshop or storage space associated with the main garage
-                    </span>
-                  </span>
-                  <span className="text-sm text-muted-foreground font-sans">One workshop alcove</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setValue("improvements.WorkshopAlcove", !workshopAlcove, { shouldValidate: true })}
-                  className={`h-10 min-w-[88px] rounded-md border-2 font-sans font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[#003366] focus:ring-offset-2 ${
-                    workshopAlcove ? "bg-[#003366] border-[#003366] text-white" : "border-[#003366] bg-transparent text-[#003366] hover:bg-[#003366]/10"
-                  }`}
-                >
-                  {workshopAlcove ? "Yes" : "No"}
-                </button>
-              </div>
-              {/* Standalone shed: detached shed/workshop + bays counter on new line when on */}
-              <div className="flex flex-col items-start gap-3 text-left">
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="group relative inline-block">
-                    <span
-                      role="tooltip"
-                      className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 z-[100] flex flex-col items-center opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                    >
-                      <span className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-[#003366] -mb-[5px]" aria-hidden />
-                      <span className="whitespace-nowrap rounded-md px-3 py-1.5 text-[11px] font-medium font-sans text-white bg-[#003366] shadow-lg">
-                        Detached shed or workshop
-                      </span>
-                    </span>
-                    <span className="text-sm text-muted-foreground font-sans">Standalone shed</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setValue("improvements.StandaloneShed", !standaloneShed, { shouldValidate: true })}
-                    className={`h-10 min-w-[88px] rounded-md border-2 font-sans font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[#003366] focus:ring-offset-2 ${
-                      standaloneShed ? "bg-[#003366] border-[#003366] text-white" : "border-[#003366] bg-transparent text-[#003366] hover:bg-[#003366]/10"
-                    }`}
-                  >
-                    {standaloneShed ? "Yes" : "No"}
-                  </button>
-                </div>
-                {standaloneShed && (
-                  <div className="flex flex-wrap items-center gap-3 w-full">
-                    <span className="text-sm text-muted-foreground font-sans">Number of bays</span>
-                    <div className="flex items-center gap-2 rounded-md border border-border bg-muted/30 p-1">
-                      <button
-                        type="button"
-                        onClick={() => setValue("improvements.StandaloneShedBays", Math.max(0, standaloneShedBays - 1), { shouldValidate: true })}
-                        className="h-8 w-8 rounded border border-[#003366] bg-transparent text-[#003366] font-sans font-medium hover:bg-[#003366]/10 focus:outline-none focus:ring-2 focus:ring-[#003366]"
-                        aria-label="Decrease shed bays"
-                      >
-                        −
-                      </button>
-                      <span className="min-w-[1.5rem] text-center text-sm font-sans text-card-foreground" aria-live="polite">
-                        {standaloneShedBays}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setValue("improvements.StandaloneShedBays", standaloneShedBays + 1, { shouldValidate: true })}
-                        className="h-8 w-8 rounded border border-[#003366] bg-transparent text-[#003366] font-sans font-medium hover:bg-[#003366]/10 focus:outline-none focus:ring-2 focus:ring-[#003366]"
-                        aria-label="Increase shed bays"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-              <p className="text-sm font-sans text-muted-foreground pt-1 border-t border-border">
-                {totalCarSpaces === 0 ? (
-                  "No covered parking"
-                ) : (
-                  <>Total car spaces: <span className="font-semibold text-[#003366]">{totalCarSpaces}</span></>
-                )}
-              </p>
-            </CardContent>
-          </Card>
+            </TabsContent>
+          </Tabs>
 
           {saveNotification && (
             <div
@@ -1093,7 +1266,7 @@ export default function PropertyEntryPage() {
             </Button>
           </div>
 
-          {/* Live report preview — syncs with form and store. Print-only: Export PDF prints just this card. */}
+          {/* Print styles: Listing Brief tab Report Preview uses report-preview-print class */}
           <style dangerouslySetInnerHTML={{ __html: `
             @media print {
               body * { visibility: hidden; }
@@ -1101,34 +1274,15 @@ export default function PropertyEntryPage() {
               .report-preview-print { position: absolute; left: 0; top: 0; width: 100%; max-width: 100%; }
             }
           `}} />
-          <div className="flex justify-end no-print">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => window.print()}
-              className="rounded-md border-2 border-[#003366] bg-white font-sans font-medium text-[#003366] hover:bg-[#003366]/5"
-            >
-              Export PDF
-            </Button>
-          </div>
-          <ReportPreview
-            addressLine={[streetNumber, streetName, city, stateOrProvince, postalCode].filter(Boolean).join(", ") || "—"}
-            bedrooms={bedrooms}
-            bathrooms={bathrooms}
-            carSpaces={totalCarSpaces}
-            landAreaSqm={landAreaSqm}
-            keyFeatures={propertyData?.keyFeatures ?? []}
-            schoolCatchment={propertyData?.identity?.schoolCatchment ?? ""}
-            shoppingCentre={propertyData?.identity?.shoppingCentre ?? ""}
-            shoppingCentreDistanceKm={propertyData?.identity?.shoppingCentreDistanceKm ?? ""}
-          />
         </form>
       </div>
     </DashboardShell>
   );
 }
 
-/** Live report preview: property header, property features (beds/baths/cars/land), highlights, education, shopping. Place-branded white card. */
+const EMPTY_PLACEHOLDER = "Pending data entry";
+
+/** Live report preview: premium Marketing Brief layout. Place-branded white card. */
 function ReportPreview({
   addressLine,
   bedrooms,
@@ -1139,6 +1293,11 @@ function ReportPreview({
   schoolCatchment,
   shoppingCentre,
   shoppingCentreDistanceKm,
+  lotPlanNumber,
+  zoning,
+  reaGroupId,
+  domainId,
+  propertyNarrative,
 }: {
   addressLine: string;
   bedrooms: number;
@@ -1149,74 +1308,128 @@ function ReportPreview({
   schoolCatchment: string;
   shoppingCentre: string;
   shoppingCentreDistanceKm: string | number;
+  lotPlanNumber: string;
+  zoning: string;
+  reaGroupId: string;
+  domainId: string;
+  propertyNarrative: string;
 }) {
   const distanceStr = shoppingCentreDistanceKm != null && String(shoppingCentreDistanceKm).trim() !== ""
     ? String(shoppingCentreDistanceKm).trim()
     : null;
   const iconClass = "size-4 shrink-0 text-[#003366]";
+  const reaDomains = [reaGroupId && `REA: ${reaGroupId}`, domainId && `Domain: ${domainId}`].filter(Boolean).join(" / ") || null;
+
   return (
-    <Card className="report-preview-print mt-8 overflow-hidden rounded-lg border border-border bg-white shadow-md">
-      <div className="rounded-t-lg border-b border-[#E3F2FD] bg-white px-6 py-4">
-        <h3 className="text-center text-2xl font-bold text-[#003366] font-sans border-b-2 border-[#e3f2fd] pb-2 w-full">Report Preview</h3>
+    <Card className="report-preview-print mt-8 overflow-hidden rounded-lg border border-border bg-white shadow-lg">
+      <div className="rounded-t-lg border-b-2 border-[#E3F2FD] bg-white px-6 py-3">
+        <h3 className="text-center text-xl font-bold text-[#003366] font-sans">Report Preview</h3>
       </div>
-      <CardHeader className="rounded-none border-b border-border bg-white px-6 py-4">
-        <CardTitle className="text-base font-bold text-[#003366] font-sans">
-          {addressLine}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="px-6 py-5 space-y-4">
-        <section>
-          <h4 className="text-sm font-semibold text-[#003366] font-sans mb-2">Property Features</h4>
-          <ul className="grid grid-cols-2 gap-x-6 gap-y-2 font-sans text-sm text-[#1e293b]">
-            <li className="flex items-center gap-2">
-              <BedDouble className={iconClass} aria-hidden />
-              <span>Bedrooms: {bedrooms ?? "—"}</span>
-            </li>
-            <li className="flex items-center gap-2">
-              <Bath className={iconClass} aria-hidden />
-              <span>Bathrooms: {bathrooms ?? "—"}</span>
-            </li>
-            <li className="flex items-center gap-2">
-              <Car className={iconClass} aria-hidden />
-              <span>Car spaces: {carSpaces ?? "—"}</span>
-            </li>
-            <li className="flex items-center gap-2">
-              <Ruler className={iconClass} aria-hidden />
-              <span>Land area: {landAreaSqm != null && landAreaSqm > 0 ? `${landAreaSqm} m²` : "—"}</span>
-            </li>
-          </ul>
-        </section>
-        {keyFeatures.length > 0 && (
-          <section>
-            <h4 className="text-sm font-semibold text-[#003366] font-sans mb-2">Highlights</h4>
-            <ul className="space-y-1">
-              {keyFeatures.map((feature) => (
-                <li key={feature} className="flex items-center gap-2 font-sans text-sm text-[#1e293b]">
-                  <span className="size-1.5 shrink-0 rounded-full bg-[#007BFF]" aria-hidden />
-                  {feature}
-                </li>
-              ))}
+      {/* Header: logo placeholder left, address right (large elegant deep navy) */}
+      <div className="flex items-start justify-between gap-8 border-b-2 border-[#E3F2FD] bg-white px-6 py-5">
+        <div className="w-28 h-20 shrink-0 rounded-lg border-2 border-dashed border-[#E3F2FD] bg-[#E3F2FD]/20 flex items-center justify-center">
+          <span className="text-xs font-sans text-[#94a3b8]">Logo</span>
+        </div>
+        <h2 className="text-right text-2xl sm:text-3xl font-bold text-[#003366] font-sans leading-tight flex-1 tracking-tight">
+          {addressLine || <span className="text-[#94a3b8] italic font-normal">{EMPTY_PLACEHOLDER}</span>}
+        </h2>
+      </div>
+      {/* Hard specs bar: bed, bath, car, land with icons — horizontal bar below header */}
+      <div className="flex flex-wrap items-center gap-8 px-6 py-4 border-b border-border bg-[#E3F2FD]/25">
+        <ul className="flex flex-wrap items-center gap-8 font-sans text-sm text-[#1e293b]">
+          <li className="flex items-center gap-2">
+            <BedDouble className={iconClass} aria-hidden />
+            <span>Beds: {bedrooms != null && bedrooms > 0 ? bedrooms : <span className="text-[#94a3b8] italic">{EMPTY_PLACEHOLDER}</span>}</span>
+          </li>
+          <li className="flex items-center gap-2">
+            <Bath className={iconClass} aria-hidden />
+            <span>Baths: {bathrooms != null && bathrooms > 0 ? bathrooms : <span className="text-[#94a3b8] italic">{EMPTY_PLACEHOLDER}</span>}</span>
+          </li>
+          <li className="flex items-center gap-2">
+            <Car className={iconClass} aria-hidden />
+            <span>Cars: {carSpaces != null && carSpaces > 0 ? carSpaces : <span className="text-[#94a3b8] italic">{EMPTY_PLACEHOLDER}</span>}</span>
+          </li>
+          <li className="flex items-center gap-2">
+            <Ruler className={iconClass} aria-hidden />
+            <span>Land: {landAreaSqm != null && landAreaSqm > 0 ? `${landAreaSqm} m²` : <span className="text-[#94a3b8] italic">{EMPTY_PLACEHOLDER}</span>}</span>
+          </li>
+        </ul>
+      </div>
+      {/* Two-column body: left = identity & land, right = location & lifestyle */}
+      <CardContent className="px-6 py-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Left column: identity and land (lot/plan, zoning, REA/domains) */}
+          <div className="space-y-4">
+            <h4 className="text-sm font-semibold text-[#003366] font-sans mb-3">Identity & Land</h4>
+            <div className="space-y-3">
+              <p className="font-sans text-sm text-[#1e293b]">
+                <span className="font-medium text-[#455A64]">Lot / Plan:</span>{" "}
+                {lotPlanNumber.trim() || <span className="text-[#94a3b8] italic">{EMPTY_PLACEHOLDER}</span>}
+              </p>
+              <p className="font-sans text-sm text-[#1e293b]">
+                <span className="font-medium text-[#455A64]">Zoning:</span>{" "}
+                {zoning.trim() || <span className="text-[#94a3b8] italic">{EMPTY_PLACEHOLDER}</span>}
+              </p>
+              <p className="font-sans text-sm text-[#1e293b]">
+                <span className="font-medium text-[#455A64]">REA / Domains:</span>{" "}
+                {reaDomains || <span className="text-[#94a3b8] italic">{EMPTY_PLACEHOLDER}</span>}
+              </p>
+            </div>
+          </div>
+          {/* Right column: location and lifestyle (schools, shopping, key ticket features) */}
+          <div className="space-y-4">
+            <h4 className="text-sm font-semibold text-[#003366] font-sans mb-3">Location & Lifestyle</h4>
+            <ul className="space-y-3">
+              <li>
+                <h5 className="text-xs font-medium text-[#455A64] font-sans flex items-center gap-2 mb-0.5">
+                  <GraduationCap className="size-3.5 text-[#003366]" aria-hidden />
+                  School Catchment Area
+                </h5>
+                <p className="font-sans text-sm text-[#1e293b] pl-5">
+                  {schoolCatchment.trim() || <span className="text-[#94a3b8] italic">{EMPTY_PLACEHOLDER}</span>}
+                </p>
+              </li>
+              <li>
+                <h5 className="text-xs font-medium text-[#455A64] font-sans mb-0.5">Nearest Major Shopping Centre</h5>
+                <p className="font-sans text-sm text-[#1e293b] pl-5">
+                  {shoppingCentre.trim()
+                    ? `${shoppingCentre.trim()}${distanceStr != null ? ` (${distanceStr} km)` : ""}`
+                    : distanceStr != null
+                      ? `${distanceStr} km`
+                      : <span className="text-[#94a3b8] italic">{EMPTY_PLACEHOLDER}</span>}
+                </p>
+              </li>
+              <li>
+                <h5 className="text-xs font-medium text-[#455A64] font-sans mb-1">Key Features</h5>
+                {keyFeatures.length > 0 ? (
+                  <ul className="space-y-0.5 pl-5">
+                    {keyFeatures.map((f) => (
+                      <li key={f} className="flex items-center gap-2 font-sans text-sm text-[#1e293b]">
+                        <span className="size-1.5 shrink-0 rounded-full bg-[#007BFF]" aria-hidden />
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="font-sans text-sm pl-5">
+                    <span className="text-[#94a3b8] italic">{EMPTY_PLACEHOLDER}</span>
+                  </p>
+                )}
+              </li>
             </ul>
-          </section>
-        )}
-        <section>
-          <h4 className="text-sm font-semibold text-[#003366] font-sans mb-2 flex items-center gap-2">
-            <GraduationCap className="size-4 text-[#007BFF]" aria-hidden />
-            School Catchment Area
-          </h4>
-          <p className="font-sans text-sm text-[#1e293b]">
-            {schoolCatchment ? schoolCatchment : "—"}
+          </div>
+        </div>
+        {/* Property Narrative: wide section with subtle pale blue #E3F2FD border */}
+        <div className="mt-8 w-full rounded-lg border-2 border-[#E3F2FD] bg-[#E3F2FD]/10 px-5 py-4">
+          <h4 className="text-sm font-semibold text-[#003366] font-sans mb-3">Property Narrative</h4>
+          <p className="font-sans text-sm text-[#1e293b] leading-relaxed">
+            {propertyNarrative?.trim() ? (
+              propertyNarrative.trim()
+            ) : (
+              <span className="text-[#94a3b8] italic">{EMPTY_PLACEHOLDER}</span>
+            )}
           </p>
-        </section>
-        {(shoppingCentre || distanceStr) && (
-          <section>
-            <h4 className="text-sm font-semibold text-[#003366] font-sans mb-2">Nearest Major Shopping Centre</h4>
-            <p className="font-sans text-sm text-[#1e293b]">
-              {shoppingCentre || "—"}
-              {distanceStr != null ? ` (${distanceStr} km)` : ""}
-            </p>
-          </section>
-        )}
+        </div>
       </CardContent>
     </Card>
   );
