@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Building2, MapPin, Clipboard, GraduationCap, BedDouble, Bath, Car, Ruler, Sparkles } from "lucide-react";
+import { Building2, MapPin, Clipboard, GraduationCap, BedDouble, Bath, Car, Ruler, Sparkles, FileText } from "lucide-react";
 import DashboardShell from "@/components/layout/dashboard-shell";
 import { PropertySchema, Property, PropertyFormInput } from "@/schemas/property.schema";
 import { Button } from "@/components/ui/button";
@@ -35,10 +35,10 @@ function buildPropertyNarrative(
   const suburb = addressLine.split(",").map((s) => s.trim())[1] ?? "";
   const paragraphs: string[] = [];
 
-  // 1. Bold headline: "Prime Opportunity in [suburb]"
+  // 1. Bold all-caps headline: "STUNNING OPPORTUNITY IN [SUBURB]"
   const headline = suburb
-    ? `Prime Opportunity in ${suburb}`
-    : "Prime Opportunity";
+    ? `STUNNING OPPORTUNITY IN ${suburb.toUpperCase()}`
+    : "STUNNING OPPORTUNITY";
   paragraphs.push(headline);
 
   // 2. Paragraph 1: property DNA (bed/bath/area) and general lifestyle appeal
@@ -48,24 +48,25 @@ function buildPropertyNarrative(
   if (livingAreaSqm && livingAreaSqm > 0) specs.push(`${livingAreaSqm} m² living`);
   if (landAreaSqm && landAreaSqm > 0) specs.push(`${landAreaSqm} m² land`);
 
-  let dnaSentence = specs.length
+  const dnaSentence = specs.length
     ? `This ${specs.join(" and ")} home${suburb ? ` in ${suburb}` : ""} presents an exceptional opportunity for families and professionals alike.`
     : suburb
       ? `This sought-after property in ${suburb} presents an exceptional opportunity for families and professionals alike.`
       : "This property presents an exceptional opportunity for families and professionals alike.";
-  if (schoolCatchment?.trim()) {
-    dnaSentence += ` Ideally positioned within the catchment for ${schoolCatchment.trim()}.`;
-  }
   paragraphs.push(dnaSentence);
 
-  // 3. Paragraph 2: benefit-driven Lifestyle Essentials (only when features exist)
+  // 3. Paragraph 2: benefit-driven — lifestyle essentials + school catchment integration
+  const parts: string[] = [];
   if (keyFeatures.length) {
     const featureList = keyFeatures.slice(0, 4).join(", ");
-    const more = keyFeatures.length > 4 ? ` and more` : "";
-    paragraphs.push(
-      `The home is further enhanced by Lifestyle Essentials including ${featureList}${more} for year-round comfort.`
-    );
+    const more = keyFeatures.length > 4 ? " and more" : "";
+    parts.push(`The lifestyle is further enhanced by essential features including ${featureList}${more}.`);
   }
+  if (schoolCatchment?.trim()) {
+    const firstSchool = schoolCatchment.split(",").map((s) => s.trim()).filter(Boolean)[0] ?? schoolCatchment.trim();
+    parts.push(`Positioned perfectly within the ${firstSchool} catchment, this home is ideal for growing families!`);
+  }
+  if (parts.length) paragraphs.push(parts.join(" "));
 
   // 4. Professional closer
   paragraphs.push(
@@ -1240,16 +1241,6 @@ export default function PropertyEntryPage() {
 
             <TabsContent value="listing-brief" className="mt-4 w-full max-w-full">
               <div className="space-y-4 w-full max-w-full">
-                <div className="flex justify-end no-print">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => window.print()}
-                    className="rounded-md border-2 border-[#003366] bg-white font-sans font-medium text-[#003366] hover:bg-[#003366]/5"
-                  >
-                    Export PDF
-                  </Button>
-                </div>
                 <ReportPreview
                   addressLine={[streetNumber, streetName, city, stateOrProvince, postalCode].filter(Boolean).join(", ") || ""}
                   bedrooms={bedrooms}
@@ -1301,7 +1292,10 @@ export default function PropertyEntryPage() {
             @media print {
               body * { visibility: hidden; }
               .report-preview-print, .report-preview-print * { visibility: visible; }
+              .report-preview-print .no-print { visibility: hidden !important; display: none !important; }
               .report-preview-print { position: absolute; left: 0; top: 0; width: 100%; max-width: 100%; }
+              .report-preview-print .logo-placeholder-print { border-color: #003366 !important; border-width: 2px !important; }
+              .report-preview-print .logo-placeholder-print span { color: #003366 !important; }
             }
           `}} />
         </form>
@@ -1357,9 +1351,9 @@ function ReportPreview({
           Report Preview
         </h3>
       </div>
-      {/* Header: logo placeholder left, address right (reduced font size per polish) */}
+      {/* Header: logo placeholder left, address right (reduced font size per polish). logo-placeholder-print: darker border when printing for agency branding. */}
       <div className="flex items-start justify-between gap-8 border-b-2 border-[#E3F2FD] bg-white px-6 py-5">
-        <div className="w-28 h-20 shrink-0 rounded-lg border-2 border-dashed border-[#E3F2FD] bg-[#E3F2FD]/20 flex items-center justify-center">
+        <div className="logo-placeholder-print w-28 h-20 shrink-0 rounded-lg border-2 border-dashed border-[#E3F2FD] bg-[#E3F2FD]/20 flex items-center justify-center">
           <span className="text-xs font-sans text-[#94a3b8]">Logo</span>
         </div>
         <h2 className="text-right text-base sm:text-lg font-bold text-[#003366] font-sans leading-tight flex-1 tracking-tight">
@@ -1451,20 +1445,35 @@ function ReportPreview({
             </ul>
           </div>
         </div>
-        {/* Property Narrative: wide section with subtle pale blue #E3F2FD border — premium document feel */}
-        <div className="mt-10 w-full rounded-lg border-2 border-[#E3F2FD] bg-[#E3F2FD]/10 px-6 py-5">
+        {/* Property Narrative: slate-50 box with rounded corners, headline — premium brochure feel */}
+        <div className="mt-10 w-full rounded-xl bg-slate-50 border border-slate-200 px-10 py-8 shadow-sm">
           <h4 className="text-sm font-semibold text-[#003366] font-sans mb-3">Property Narrative</h4>
-          <div className="font-sans text-sm text-[#1e293b] leading-relaxed space-y-3">
-            {propertyNarrative?.trim() ? (
-              propertyNarrative.trim().split("\n\n").map((para, i) => (
-                <p key={i} className={i === 0 ? "font-bold text-[#003366]" : ""}>
+          {propertyNarrative?.trim() ? (
+            <div className="font-sans text-sm text-[#1e293b] leading-[1.7] space-y-4">
+              {propertyNarrative.trim().split("\n\n").map((para, i) => (
+                <p key={i} className={i === 0 ? "font-bold text-[#003366] text-base tracking-tight" : "font-normal"}>
                   {para}
                 </p>
-              ))
-            ) : (
-              <p className="text-[#94a3b8] italic">{EMPTY_PLACEHOLDER}</p>
-            )}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-[#94a3b8] italic font-sans text-sm">{EMPTY_PLACEHOLDER}</p>
+          )}
+        </div>
+        {/* Agent signature footer: inside print area, at bottom with elegant separator */}
+        <footer className="mt-10 border-t-2 border-[#E3F2FD] pt-6 pb-8">
+          <p className="font-serif text-xs text-[#455A64] tracking-wide">Presented by: Brendan Lewington</p>
+        </footer>
+        {/* Export PDF: natural next step at bottom, primary blue with icon — no-print so excluded from PDF */}
+        <div className="flex justify-end px-8 pb-8 pt-4 no-print">
+          <Button
+            type="button"
+            onClick={() => window.print()}
+            className="h-11 min-w-[180px] rounded-md bg-[#003366] font-sans font-medium text-white hover:bg-[#003366]/90 flex items-center justify-center gap-2 shadow-md"
+          >
+            <FileText className="size-5 shrink-0" aria-hidden />
+            Export PDF
+          </Button>
         </div>
       </CardContent>
     </Card>
