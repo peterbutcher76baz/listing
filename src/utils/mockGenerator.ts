@@ -1,4 +1,4 @@
-import { PropertySchema } from "../src/schemas/property.schema";
+import { PropertySchema } from "@/schemas/property.schema";
 
 export const generateMockProperty = (id: string) => {
   const mockData = {

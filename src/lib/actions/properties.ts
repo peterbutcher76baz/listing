@@ -23,11 +23,23 @@ export type AgentProperty = {
   listPrice: string | null;
   livingArea: number | null;
   officialBrand: string | null;
+  /** External identity hooks. */
+  corelogicId: string | null;
+  reaGroupId: string | null;
+  domainId: string | null;
+  statePropertyId: string | null;
+  lotPlanNumber: string | null;
+  agentCrmId: string | null;
   createdAt: Date;
   updatedAt: Date;
-  // Joined (optional): school catchments from locations
-  primarySchoolCatchment?: string | null;
-  secondarySchoolCatchment?: string | null;
+  /** School catchments from locations (joined). */
+  primarySchoolCatchment: string | null;
+  secondarySchoolCatchment: string | null;
+  /** Community amenities (ready for future geo script). */
+  shoppingCentre: string | null;
+  shoppingCentreDistanceKm: string | null;
+  /** Key features checklist (e.g. Solar Power, Swimming pool). */
+  keyFeatures: string[];
 };
 
 const propertySelection = {
@@ -46,17 +58,59 @@ const propertySelection = {
   listPrice: properties.listPrice,
   livingArea: properties.livingArea,
   officialBrand: properties.officialBrand,
+  corelogicId: properties.corelogicId,
+  reaGroupId: properties.reaGroupId,
+  domainId: properties.domainId,
+  statePropertyId: properties.statePropertyId,
+  lotPlanNumber: properties.lotPlanNumber,
+  agentCrmId: properties.agentCrmId,
+  keyFeatures: properties.keyFeatures,
   createdAt: properties.createdAt,
   updatedAt: properties.updatedAt,
 };
 
-function mapRow(row: typeof properties.$inferSelect & { primarySchoolCatchment?: string | null; secondarySchoolCatchment?: string | null }): AgentProperty {
+/** Row shape from select (properties + locations join). */
+type SelectRow = {
+  id: string;
+  agentId: string | null;
+  address: string;
+  suburb: string;
+  postcode: string;
+  propertyType: string;
+  bedCount: number | null;
+  bathCount: number | null;
+  garageSpaces: number | null;
+  carPortSpaces: number | null;
+  parkingCount: number | null;
+  status: string | null;
+  listPrice: string | null;
+  livingArea: number | null;
+  officialBrand: string | null;
+  corelogicId: string | null;
+  reaGroupId: string | null;
+  domainId: string | null;
+  statePropertyId: string | null;
+  lotPlanNumber: string | null;
+  agentCrmId: string | null;
+  keyFeatures: string[] | null;
+  createdAt: Date;
+  updatedAt: Date;
+  primarySchoolCatchment: string | null;
+  secondarySchoolCatchment: string | null;
+  shoppingCentre: string | null;
+  shoppingCentreDistanceKm: string | null;
+};
+
+function mapRow(row: SelectRow): AgentProperty {
   return {
     ...row,
     carSpaces: row.parkingCount ?? null,
     primarySchoolCatchment: row.primarySchoolCatchment ?? null,
     secondarySchoolCatchment: row.secondarySchoolCatchment ?? null,
-  } as AgentProperty;
+    shoppingCentre: row.shoppingCentre ?? null,
+    shoppingCentreDistanceKm: row.shoppingCentreDistanceKm ?? null,
+    keyFeatures: Array.isArray(row.keyFeatures) ? row.keyFeatures : [],
+  };
 }
 
 export async function getAgentProperties(agentEmail: string): Promise<AgentProperty[]> {
@@ -72,6 +126,8 @@ export async function getAgentProperties(agentEmail: string): Promise<AgentPrope
         ...propertySelection,
         primarySchoolCatchment: locations.primarySchoolCatchment,
         secondarySchoolCatchment: locations.secondarySchoolCatchment,
+        shoppingCentre: locations.shoppingCentre,
+        shoppingCentreDistanceKm: locations.shoppingCentreDistanceKm,
       })
       .from(properties)
       .leftJoin(locations, eq(properties.id, locations.propertyId))
@@ -92,6 +148,8 @@ export async function getAllProperties(): Promise<AgentProperty[]> {
         ...propertySelection,
         primarySchoolCatchment: locations.primarySchoolCatchment,
         secondarySchoolCatchment: locations.secondarySchoolCatchment,
+        shoppingCentre: locations.shoppingCentre,
+        shoppingCentreDistanceKm: locations.shoppingCentreDistanceKm,
       })
       .from(properties)
       .leftJoin(locations, eq(properties.id, locations.propertyId));
@@ -110,6 +168,8 @@ export async function getPropertyById(id: string): Promise<AgentProperty | null>
         ...propertySelection,
         primarySchoolCatchment: locations.primarySchoolCatchment,
         secondarySchoolCatchment: locations.secondarySchoolCatchment,
+        shoppingCentre: locations.shoppingCentre,
+        shoppingCentreDistanceKm: locations.shoppingCentreDistanceKm,
       })
       .from(properties)
       .leftJoin(locations, eq(properties.id, locations.propertyId))
@@ -152,6 +212,7 @@ export async function saveCompositeProperty(
         statePropertyId: composite.property.statePropertyId ?? null,
         lotPlanNumber: composite.property.lotPlanNumber ?? null,
         agentCrmId: composite.property.agentCrmId ?? null,
+        keyFeatures: composite.property.keyFeatures ?? [],
         status: composite.property.status ?? "Draft",
       })
       .returning({ id: properties.id });
@@ -177,6 +238,8 @@ export async function saveCompositeProperty(
       secondarySchoolCatchment: composite.location.secondarySchoolCatchment ?? null,
       primarySchoolProximity: composite.location.primarySchoolProximity ?? null,
       secondarySchoolProximity: composite.location.secondarySchoolProximity ?? null,
+      shoppingCentre: composite.location.shoppingCentre ?? null,
+      shoppingCentreDistanceKm: composite.location.shoppingCentreDistanceKm ?? null,
     });
 
     return { ok: true, propertyId };

@@ -60,6 +60,8 @@ export const properties = pgTable("properties", {
   statePropertyId: text("state_property_id"), // VGID
   lotPlanNumber: text("lot_plan_number"),
   agentCrmId: text("agent_crm_id"),
+  /** Key features checklist (e.g. Solar Power, Swimming pool). Stored as JSON array. */
+  keyFeatures: jsonb("key_features").$type<string[]>().default([]),
 
   status: text("status").default("Draft"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -93,8 +95,8 @@ export const propertyFeatures = pgTable("property_features", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// --- LOCATIONS TABLE (3NF: school catchments and proximity) ---
-/** School catchment and proximity. Linked by propertyId. */
+// --- LOCATIONS TABLE (3NF: school catchments, proximity, shopping) ---
+/** School catchment, proximity, and community amenities. Linked by propertyId. */
 export const locations = pgTable("locations", {
   id: uuid("id").primaryKey().defaultRandom(),
   propertyId: uuid("property_id")
@@ -106,6 +108,10 @@ export const locations = pgTable("locations", {
   secondarySchoolCatchment: text("secondary_school_catchment"),
   primarySchoolProximity: text("primary_school_proximity"), // e.g. "500m", "walking distance"
   secondarySchoolProximity: text("secondary_school_proximity"),
+  /** Nearest major shopping centre (for report and future geo script). */
+  shoppingCentre: text("shopping_centre"),
+  /** Distance to nearest major shopping centre in km. */
+  shoppingCentreDistanceKm: text("shopping_centre_distance_km"),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

@@ -131,6 +131,7 @@ export const propertiesTableSchema = z.object({
   statePropertyId: z.string().nullable().optional(),
   lotPlanNumber: z.string().nullable().optional(),
   agentCrmId: z.string().nullable().optional(),
+  keyFeatures: z.array(z.string()).nullable().optional(),
   status: z.string().optional(),
   createdAt: z.date().optional(),
   updatedAt: z.date().optional(),
@@ -192,6 +193,7 @@ export function propertyToThreeTables(property: Property, options?: { agentId?: 
     statePropertyId: id?.statePropertyId ?? null,
     lotPlanNumber: id?.lotPlanNumber ?? null,
     agentCrmId: id?.agentCrmId ?? null,
+    keyFeatures: property.keyFeatures ?? [],
     status: "Draft",
   });
 
@@ -203,11 +205,16 @@ export function propertyToThreeTables(property: Property, options?: { agentId?: 
     standaloneShedBays: s,
   });
 
+  const schoolCatchment = id?.schoolCatchment ?? addr?.PrimarySchoolCatchment ?? null;
+  const secondaryCatchment = addr?.SecondarySchoolCatchment ?? null;
+  const shoppingDist = id?.shoppingCentreDistanceKm != null ? String(id.shoppingCentreDistanceKm) : null;
   const locationRow = locationsTableSchema.omit({ propertyId: true }).parse({
-    primarySchoolCatchment: addr?.PrimarySchoolCatchment ?? null,
-    secondarySchoolCatchment: addr?.SecondarySchoolCatchment ?? null,
+    primarySchoolCatchment: schoolCatchment,
+    secondarySchoolCatchment: secondaryCatchment,
     primarySchoolProximity: null,
     secondarySchoolProximity: null,
+    shoppingCentre: id?.shoppingCentre ?? null,
+    shoppingCentreDistanceKm: shoppingDist,
   });
 
   return { property: propertyRow, features: featuresRow, location: locationRow };

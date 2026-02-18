@@ -28,27 +28,51 @@ function buildPropertyNarrative(
   bathrooms: number,
   keyFeatures: string[],
   schoolCatchment: string,
-  referenceText: string
+  referenceText: string,
+  livingAreaSqm?: number,
+  landAreaSqm?: number
 ): string {
   const suburb = addressLine.split(",").map((s) => s.trim())[1] ?? "";
-  const parts: string[] = [];
-  if (addressLine) {
-    const intro = referenceText?.trim()
-      ? referenceText.split(/[.!?]/)[0]?.trim() + "."
-      : "Nestled in a sought-after location, this property offers the perfect blend of comfort and convenience.";
-    parts.push(intro);
-  }
+  const paragraphs: string[] = [];
+
+  // 1. Bold headline: "Prime Opportunity in [suburb]"
+  const headline = suburb
+    ? `Prime Opportunity in ${suburb}`
+    : "Prime Opportunity";
+  paragraphs.push(headline);
+
+  // 2. Paragraph 1: property DNA (bed/bath/area) and general lifestyle appeal
   const specs: string[] = [];
   if (bedrooms > 0) specs.push(`${bedrooms} bedroom${bedrooms !== 1 ? "s" : ""}`);
   if (bathrooms > 0) specs.push(`${bathrooms} bathroom${bathrooms !== 1 ? "s" : ""}`);
-  if (specs.length) parts.push(`This ${specs.join(" and ")} home${suburb ? ` in ${suburb}` : ""} presents an exceptional opportunity.`);
-  if (keyFeatures.length) {
-    parts.push(`Key features include ${keyFeatures.slice(0, 4).join(", ")}${keyFeatures.length > 4 ? " and more" : ""}.`);
-  }
+  if (livingAreaSqm && livingAreaSqm > 0) specs.push(`${livingAreaSqm} m² living`);
+  if (landAreaSqm && landAreaSqm > 0) specs.push(`${landAreaSqm} m² land`);
+
+  let dnaSentence = specs.length
+    ? `This ${specs.join(" and ")} home${suburb ? ` in ${suburb}` : ""} presents an exceptional opportunity for families and professionals alike.`
+    : suburb
+      ? `This sought-after property in ${suburb} presents an exceptional opportunity for families and professionals alike.`
+      : "This property presents an exceptional opportunity for families and professionals alike.";
   if (schoolCatchment?.trim()) {
-    parts.push(`Ideally positioned within the catchment for ${schoolCatchment.trim()}.`);
+    dnaSentence += ` Ideally positioned within the catchment for ${schoolCatchment.trim()}.`;
   }
-  return parts.length ? parts.join(" ") : referenceText?.trim() || NUMIA_PLACE_TEXT;
+  paragraphs.push(dnaSentence);
+
+  // 3. Paragraph 2: benefit-driven Lifestyle Essentials (only when features exist)
+  if (keyFeatures.length) {
+    const featureList = keyFeatures.slice(0, 4).join(", ");
+    const more = keyFeatures.length > 4 ? ` and more` : "";
+    paragraphs.push(
+      `The home is further enhanced by Lifestyle Essentials including ${featureList}${more} for year-round comfort.`
+    );
+  }
+
+  // 4. Professional closer
+  paragraphs.push(
+    "A rare find in the current market. Contact Agent today to arrange your inspection."
+  );
+
+  return paragraphs.join("\n\n");
 }
 
 /** Key features checklist options (saved in store for final report). */
@@ -131,6 +155,7 @@ export default function PropertyEntryPage() {
   const totalCarSpaces = garageCount + carportCount;
   const bedrooms = watch("improvements.BedroomsTotal") ?? 0;
   const bathrooms = watch("improvements.BathroomsFull") ?? 0;
+  const livingAreaSqm = watch("improvements.LivingArea");
   const landAreaSqm = watch("land.LotSizeSquareMeters");
 
   /** Expand street abbreviations for exact search (e.g. St → Street) so QLD GLOBE returns one result. */
@@ -261,7 +286,9 @@ export default function PropertyEntryPage() {
       bathrooms ?? 0,
       propertyData?.keyFeatures ?? [],
       propertyData?.identity?.schoolCatchment ?? "",
-      agentVoiceReference ?? NUMIA_PLACE_TEXT
+      agentVoiceReference ?? NUMIA_PLACE_TEXT,
+      typeof livingAreaSqm === "number" ? livingAreaSqm : undefined,
+      typeof landAreaSqm === "number" ? landAreaSqm : undefined
     );
     setPropertyNarrative(narrative);
     toast.success("Narrative generated. View in Listing Brief tab.", {
@@ -276,6 +303,8 @@ export default function PropertyEntryPage() {
     postalCode,
     bedrooms,
     bathrooms,
+    livingAreaSqm,
+    landAreaSqm,
     propertyData?.keyFeatures,
     propertyData?.identity?.schoolCatchment,
     agentVoiceReference,
@@ -1422,13 +1451,17 @@ function ReportPreview({
         {/* Property Narrative: wide section with subtle pale blue #E3F2FD border */}
         <div className="mt-8 w-full rounded-lg border-2 border-[#E3F2FD] bg-[#E3F2FD]/10 px-5 py-4">
           <h4 className="text-sm font-semibold text-[#003366] font-sans mb-3">Property Narrative</h4>
-          <p className="font-sans text-sm text-[#1e293b] leading-relaxed">
+          <div className="font-sans text-sm text-[#1e293b] leading-relaxed space-y-3">
             {propertyNarrative?.trim() ? (
-              propertyNarrative.trim()
+              propertyNarrative.trim().split("\n\n").map((para, i) => (
+                <p key={i} className={i === 0 ? "font-bold text-[#003366]" : ""}>
+                  {para}
+                </p>
+              ))
             ) : (
-              <span className="text-[#94a3b8] italic">{EMPTY_PLACEHOLDER}</span>
+              <p className="text-[#94a3b8] italic">{EMPTY_PLACEHOLDER}</p>
             )}
-          </p>
+          </div>
         </div>
       </CardContent>
     </Card>

@@ -27,7 +27,7 @@ export const ZoningSchema = z.object({
   FloodZone: z.string().optional()
 });
 
-/** Locations table (3NF): school catchment names and proximity distances. */
+/** Locations table (3NF): school catchment, proximity, shopping. */
 export const locationsTableSchema = z.object({
   id: z.string().uuid().optional(),
   propertyId: z.string().uuid(),
@@ -35,6 +35,8 @@ export const locationsTableSchema = z.object({
   secondarySchoolCatchment: z.string().nullable().optional(),
   primarySchoolProximity: z.string().nullable().optional(),
   secondarySchoolProximity: z.string().nullable().optional(),
+  shoppingCentre: z.string().nullable().optional(),
+  shoppingCentreDistanceKm: z.string().nullable().optional(),
   createdAt: z.date().optional(),
   updatedAt: z.date().optional(),
 }).strict();
