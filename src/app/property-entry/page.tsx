@@ -1351,19 +1351,21 @@ function ReportPreview({
 
   return (
     <Card className="report-preview-print mt-8 overflow-hidden rounded-lg border border-border bg-white shadow-lg">
-      <div className="rounded-t-lg border-b-2 border-[#E3F2FD] bg-white px-6 py-3">
-        <h3 className="text-center text-xl font-bold text-[#003366] font-sans">Report Preview</h3>
+      <div className="rounded-t-lg border-b-2 border-b-[#E3F2FD] bg-white px-6 py-4">
+        <h3 className="text-center text-2xl sm:text-3xl font-bold text-[#003366] font-sans underline decoration-2 decoration-[#E3F2FD] underline-offset-4">
+          Report Preview
+        </h3>
       </div>
-      {/* Header: logo placeholder left, address right (large elegant deep navy) */}
+      {/* Header: logo placeholder left, address right (reduced font size per polish) */}
       <div className="flex items-start justify-between gap-8 border-b-2 border-[#E3F2FD] bg-white px-6 py-5">
         <div className="w-28 h-20 shrink-0 rounded-lg border-2 border-dashed border-[#E3F2FD] bg-[#E3F2FD]/20 flex items-center justify-center">
           <span className="text-xs font-sans text-[#94a3b8]">Logo</span>
         </div>
-        <h2 className="text-right text-2xl sm:text-3xl font-bold text-[#003366] font-sans leading-tight flex-1 tracking-tight">
+        <h2 className="text-right text-base sm:text-lg font-bold text-[#003366] font-sans leading-tight flex-1 tracking-tight">
           {addressLine || <span className="text-[#94a3b8] italic font-normal">{EMPTY_PLACEHOLDER}</span>}
         </h2>
       </div>
-      {/* Hard specs bar: bed, bath, car, land with icons — horizontal bar below header */}
+      {/* Hard specs bar: bed, bath, car, land with icons — horizontal bar below header, icons aligned */}
       <div className="flex flex-wrap items-center gap-8 px-6 py-4 border-b border-border bg-[#E3F2FD]/25">
         <ul className="flex flex-wrap items-center gap-8 font-sans text-sm text-[#1e293b]">
           <li className="flex items-center gap-2">
@@ -1384,8 +1386,8 @@ function ReportPreview({
           </li>
         </ul>
       </div>
-      {/* Two-column body: left = identity & land, right = location & lifestyle */}
-      <CardContent className="px-6 py-6">
+      {/* Two-column body: left = identity & land, right = location & lifestyle — premium padding */}
+      <CardContent className="px-8 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Left column: identity and land (lot/plan, zoning, REA/domains) */}
           <div className="space-y-4">
@@ -1448,8 +1450,8 @@ function ReportPreview({
             </ul>
           </div>
         </div>
-        {/* Property Narrative: wide section with subtle pale blue #E3F2FD border */}
-        <div className="mt-8 w-full rounded-lg border-2 border-[#E3F2FD] bg-[#E3F2FD]/10 px-5 py-4">
+        {/* Property Narrative: wide section with subtle pale blue #E3F2FD border — premium document feel */}
+        <div className="mt-10 w-full rounded-lg border-2 border-[#E3F2FD] bg-[#E3F2FD]/10 px-6 py-5">
           <h4 className="text-sm font-semibold text-[#003366] font-sans mb-3">Property Narrative</h4>
           <div className="font-sans text-sm text-[#1e293b] leading-relaxed space-y-3">
             {propertyNarrative?.trim() ? (
