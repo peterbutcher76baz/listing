@@ -1215,6 +1215,7 @@ export default function PropertyEntryPage() {
                   </p>
                 </CardHeader>
                 <CardContent className="px-6 py-5 space-y-4">
+                  {/* Persisted via zustand persist (agentVoiceReference) — survives navigation and refresh */}
                   <Textarea
                     value={agentVoiceReference ?? NUMIA_PLACE_TEXT}
                     onChange={(e) => setAgentVoiceReference(e.target.value || null)}
