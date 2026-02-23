@@ -1,8 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useCallback } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Home,
   Mic,
@@ -10,16 +10,20 @@ import {
   PenLine,
   Settings,
   LogOut,
-  Sparkles,
+  FilePlus,
+  LayoutDashboard,
 } from "lucide-react";
+import { usePropertyStore } from "@/store/usestore";
+import { useVoiceSettings, clearVoiceStorage } from "@/contexts/listing-context";
+import { Button } from "@/components/ui/button";
 
 const navItems = [
-  { href: "/", icon: Home, label: "Dashboard" },
+  { href: "/landingPage", icon: Home, label: "Home" },
+  { href: "/", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/property-entry", icon: PenLine, label: "Property Entry" },
-  { href: "/listing-style-selection", icon: Mic, label: "ListingStyleSelection" },
+  { href: "/listing-style-selection", icon: Mic, label: "Listing Style Selection" },
   { href: "/listing-generator", icon: FileText, label: "Listing Generator" },
-  { href: "/agent-style-training", icon: Sparkles, label: "Agent Style Training" },
-  { href: "/settings", icon: Settings, label: "Settings" },
+  { href: "/agent-style-training", icon: Settings, label: "Agent Style Training" },
 ] as const;
 
 export default function DashboardShell({
@@ -28,6 +32,17 @@ export default function DashboardShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const clearAll = usePropertyStore((s) => s.clearAll);
+  const { setVoice } = useVoiceSettings();
+
+  /** Clears all property and agent state, then redirects to property entry for a fresh start. */
+  const resetState = useCallback(() => {
+    clearAll();
+    clearVoiceStorage();
+    setVoice({ styleId: null, styleIntensity: 50 });
+    router.replace("/property-entry");
+  }, [clearAll, setVoice, router]);
 
   return (
     <div className="flex h-screen bg-background">
@@ -65,14 +80,34 @@ export default function DashboardShell({
         </div>
       </aside>
 
-<main className="flex-1 overflow-y-auto bg-background">
-          <header className="no-print h-16 bg-card border-b border-border flex items-center justify-between px-8 sticky top-0 z-10 shadow-sm">
-          <h2 className="text-lg font-bold text-card-foreground font-sans">
-            Welcome Back, Chris
-          </h2>
-          <div className="flex items-center space-x-4">
+<main className="flex-1 flex flex-col min-h-0 bg-background">
+          <header className="no-print shrink-0 h-16 bg-card border-b border-border flex items-center justify-between px-8 sticky top-0 z-10 shadow-sm">
+          <div className="flex items-center gap-4">
             <Link
-              href="/settings"
+              href="/landingPage"
+              className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition"
+              title="Return to landing page"
+            >
+              <Home size={18} />
+              Home
+            </Link>
+            <h2 className="text-lg font-bold text-card-foreground font-sans">
+              Welcome Back
+            </h2>
+          </div>
+          <div className="flex items-center space-x-4">
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              onClick={resetState}
+              className="bg-[#007BFF] hover:bg-[#007BFF]/90"
+            >
+              <FilePlus size={16} className="mr-1.5" />
+              New listing
+            </Button>
+            <Link
+              href="/agent-style-training"
               className="text-sm font-medium text-muted-foreground hover:text-foreground transition"
             >
               Login
@@ -83,7 +118,7 @@ export default function DashboardShell({
           </div>
         </header>
 
-        <div className="p-8">{children}</div>
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-8 min-h-0">{children}</div>
       </main>
     </div>
   );

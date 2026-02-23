@@ -18,10 +18,13 @@ type IdentitySlice = NonNullable<Property["identity"]>;
 type PropertyStore = {
   propertyData: Property | null;
   setPropertyData: (p: Property | null) => void;
+  /** DB property ID when viewing/editing a saved property; null = fresh entry (no fetch). */
+  activePropertyId: string | null;
+  setActivePropertyId: (id: string | null) => void;
   /** Merge identity IDs (e.g. from URL sniff) into propertyData; creates minimal property if null. */
   mergeIdentity: (ids: Partial<IdentitySlice>) => void;
   clearPropertyData: () => void;
-  /** Clears propertyData and voiceStyle in one go so persisted storage is updated for a blank slate. */
+  /** Clears propertyData, voiceStyle, activePropertyId in one go so persisted storage is updated for a blank slate. */
   clearAll: () => void;
   voiceStyle: string | null;
   setVoiceStyle: (v: string | null) => void;
@@ -49,6 +52,8 @@ export const usePropertyStore = create<PropertyStore>()(
     (set) => ({
       propertyData: null,
       setPropertyData: (p) => set({ propertyData: p }),
+      activePropertyId: null,
+      setActivePropertyId: (id) => set({ activePropertyId: id }),
       mergeIdentity: (ids) =>
         set((state) => {
           const nextIdentity = { ...state.propertyData?.identity, ...ids };
@@ -67,7 +72,12 @@ export const usePropertyStore = create<PropertyStore>()(
           return { propertyData: parsed.success ? parsed.data : minimal };
         }),
       clearPropertyData: () => set({ propertyData: null }),
-      clearAll: () => set({ propertyData: null, voiceStyle: null, agentVoiceReference: null, propertyNarrative: null, styleLevel: 50 }),
+      clearAll: () => {
+        if (typeof window !== "undefined") {
+          usePropertyStore.persist.clearStorage();
+        }
+        set({ propertyData: null, voiceStyle: null, agentVoiceReference: null, propertyNarrative: null, styleLevel: 50, activePropertyId: null });
+      },
       voiceStyle: null,
       setVoiceStyle: (v) => set({ voiceStyle: v }),
       agentVoiceReference: null,
@@ -87,6 +97,7 @@ export const usePropertyStore = create<PropertyStore>()(
         agentVoiceReference: state.agentVoiceReference,
         propertyNarrative: state.propertyNarrative,
         styleLevel: state.styleLevel,
+        activePropertyId: state.activePropertyId,
       }),
       onRehydrateStorage: () => (state, err) => {
         if (err) console.warn("[real-state-dash-info-dot-volt] rehydration error", err);

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BedDouble, Bath, Car, ArrowRight } from "lucide-react";
 import DashboardShell from "@/components/layout/dashboard-shell";
+import { NewListingButton } from "@/components/new-listing-button";
 import { getAllProperties } from "@/lib/actions/properties";
 import {
   Card,
@@ -46,13 +47,26 @@ export default async function Page() {
               </div>
               <div className="flex shrink-0 items-center sm:mt-0">
                 <Button variant="outline" size="sm" asChild className="border-primary-foreground/30 bg-transparent text-primary-foreground hover:bg-primary-foreground/10">
-                  <Link href="/settings">Settings</Link>
+                  <Link href="/agent-style-training">Agent Style Training</Link>
                 </Button>
               </div>
             </div>
           </header>
 
           <main className="px-4 py-8 sm:px-6 lg:px-8">
+          {properties.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <p className="text-lg font-medium text-muted-foreground font-sans">
+                No properties found
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground font-sans max-w-md">
+                Start a new listing to begin.
+              </p>
+              <NewListingButton variant="outline" size="sm" className="mt-6">
+                Start a new listing
+              </NewListingButton>
+            </div>
+          ) : (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {properties.map((p) => (
               <Card
@@ -111,6 +125,7 @@ export default async function Page() {
               </Card>
             ))}
           </div>
+          )}
           </main>
         </div>
       </div>

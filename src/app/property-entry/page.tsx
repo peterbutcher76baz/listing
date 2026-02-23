@@ -105,6 +105,7 @@ export default function PropertyEntryPage() {
   const [hydrationTimeout, setHydrationTimeout] = useState(false);
   const [glowRea, setGlowRea] = useState(false);
   const [glowDomain, setGlowDomain] = useState(false);
+  const [activeTab, setActiveTab] = useState("property-dna");
   const didHydrateFormFromStore = useRef(false);
 
   useEffect(() => {
@@ -399,6 +400,8 @@ export default function PropertyEntryPage() {
     clearAll();
     reset(defaultFormValues);
     setImportUrl("");
+    setActiveTab("property-dna");
+    didHydrateFormFromStore.current = false;
   }, [clearAll, reset]);
 
   /**
@@ -549,6 +552,17 @@ export default function PropertyEntryPage() {
     didHydrateFormFromStore.current = true;
   }, [canRender, propertyData, reset]);
 
+  /** When store is cleared (e.g. New Listing), reset form and switch to tab 1 so identity sniffer is ready for fresh paste. */
+  useEffect(() => {
+    if (!canRender) return;
+    if (propertyData === null && didHydrateFormFromStore.current) {
+      reset(defaultFormValues);
+      setActiveTab("property-dna");
+      setImportUrl("");
+      didHydrateFormFromStore.current = false;
+    }
+  }, [canRender, propertyData, reset]);
+
   if (!canRender) {
     return (
       <DashboardShell>
@@ -572,13 +586,15 @@ export default function PropertyEntryPage() {
                 RESO-compliant property data. Factual only — no style or voice.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={handleClearForm}
-              className="shrink-0 rounded-md border border-[#455A64] bg-transparent px-3 py-2 text-sm font-sans font-medium text-[#455A64] hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-[#455A64]/40"
-            >
-              Clear form
-            </button>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={handleClearForm}
+                className="rounded-md border border-[#455A64] bg-transparent px-3 py-2 text-sm font-sans font-medium text-[#455A64] hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-[#455A64]/40"
+              >
+                Clear form
+              </button>
+            </div>
           </div>
         </header>
 
@@ -587,7 +603,7 @@ export default function PropertyEntryPage() {
           className="mt-6 space-y-6"
           noValidate
         >
-          <Tabs defaultValue="property-dna" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="w-full justify-start gap-1 rounded-lg border border-border bg-[#E3F2FD]/30 p-1">
               <TabsTrigger value="property-dna" className="data-[state=active]:bg-[#E3F2FD] data-[state=active]:text-[#003366]">
                 Property DNA

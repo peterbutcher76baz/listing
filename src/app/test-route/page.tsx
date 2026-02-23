@@ -2,8 +2,8 @@
 export default async function TestRoute() {
   return (
     <div style={{ padding: '50px', backgroundColor: '#111', color: '#fff', minHeight: '100vh' }}>
-      <h1 style={{ color: '#00ff00' }}>🚀 Chris RealEstate Verification</h1>
-      <p>Database Status: Checking for "Chris"...</p>
+      <h1 style={{ color: '#00ff00' }}>🚀 RealEstate Verification</h1>
+      <p>Database Status: Checking connection...</p>
       
       <div style={{ border: '2px dashed #444', padding: '20px', borderRadius: '10px' }}>
         {/* We will insert the database fetch here in the next step */}

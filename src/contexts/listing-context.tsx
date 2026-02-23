@@ -90,3 +90,10 @@ export function useVoiceSettings() {
   if (!ctx) throw new Error("useVoiceSettings must be used within ListingProviders");
   return ctx;
 }
+
+/** Clears voice settings from localStorage. Call during global reset (e.g. New Listing). */
+export function clearVoiceStorage(): void {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem(VOICE_STORAGE_KEY);
+  }
+}
