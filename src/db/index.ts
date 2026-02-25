@@ -1,10 +1,12 @@
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
+import { Pool } from "pg";
+import { drizzle } from "drizzle-orm/node-postgres";
 import * as schema from "./schema";
 
-/** Requires DATABASE_URL in environment (e.g. .env) for PostgreSQL/Neon connection. */
-const sql = neon(process.env.DATABASE_URL!);
-export const db = drizzle({ client: sql, schema });
+/** Requires DATABASE_URL in environment (e.g. .env) for PostgreSQL/PostGIS connection. */
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL!,
+});
+export const db = drizzle({ client: pool, schema });
 
 /**
  * GUARDRAIL: 

@@ -1,0 +1,17 @@
+# Dependencies
+node_modules
+
+# Build outputs
+.next
+out
+build
+dist
+
+# Generated
+drizzle
+*.tsbuildinfo
+
+# Lock files
+package-lock.json
+pnpm-lock.yaml
+yarn.lock

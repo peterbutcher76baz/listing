@@ -32,6 +32,9 @@ yarn-error.log*
 
 # env files – do not commit (contains DATABASE_URL and other secrets)
 .env
+.env.local
+.env.development
+.env.production
 .env.*
 !.env.example
 

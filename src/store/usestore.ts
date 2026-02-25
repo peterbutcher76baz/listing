@@ -91,6 +91,15 @@ export const usePropertyStore = create<PropertyStore>()(
     }),
     {
       name: PERSIST_NAME,
+      version: 2, // Bump to invalidate cached data when switching databases
+      migrate: (persistedState, _fromVersion) => {
+        // When migrating from v0 (or any older version), clear propertyData to prevent ghost demo data
+        const s = persistedState as Record<string, unknown>;
+        if (s && typeof s === "object" && "propertyData" in s) {
+          return { ...s, propertyData: null, activePropertyId: null };
+        }
+        return persistedState ?? {};
+      },
       partialize: (state) => ({
         propertyData: state.propertyData,
         voiceStyle: state.voiceStyle,
@@ -101,10 +110,15 @@ export const usePropertyStore = create<PropertyStore>()(
       }),
       onRehydrateStorage: () => (state, err) => {
         if (err) console.warn("[real-state-dash-info-dot-volt] rehydration error", err);
-        // Normalize propertyData from schema so persisted data has ParkingCount, parkingMetadata, OfficialBrand
+        // Normalize propertyData from schema so persisted data has ParkingCount, parkingMetadata, OfficialBrand.
+        // No demo/mock data: only restore what was validly persisted. If parse fails, clear to prevent ghost data.
         if (state?.propertyData != null) {
           const normalized = normalizePersistedProperty(state.propertyData);
-          if (normalized) requestAnimationFrame(() => usePropertyStore.getState().setPropertyData(normalized));
+          requestAnimationFrame(() => {
+            const store = usePropertyStore.getState();
+            if (normalized) store.setPropertyData(normalized);
+            else store.setPropertyData(null); // Invalid/corrupt persisted data — clear it
+          });
         }
         requestAnimationFrame(() => {
           usePropertyStore.getState().setHasHydrated(true);
