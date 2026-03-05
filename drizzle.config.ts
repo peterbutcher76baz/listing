@@ -8,6 +8,7 @@ export default defineConfig({
   dbCredentials: {
     url: process.env.DATABASE_URL!,
   },
-  // This tells Drizzle: "Only touch tables I've actually defined"
+  // Ensure we only look at YOUR tables and ignore PostGIS system tables
   tablesFilter: ["agents", "locations", "properties", "property_analysis", "property_features"],
+  schemaFilter: ["public"], // Only look in the public schema
 });

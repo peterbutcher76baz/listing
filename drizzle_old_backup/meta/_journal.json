@@ -1,0 +1,48 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1769708000000,
+      "tag": "0001_agents_properties_current",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1738656000000,
+      "tag": "0002_reso_v2_properties",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1738800000000,
+      "tag": "0003_property_analysis",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1738886400000,
+      "tag": "0004_third_normal_form",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1738972800000,
+      "tag": "0005_add_community_amenities",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1772469435404,
+      "tag": "0005_sticky_mephisto",
+      "breakpoints": true
+    }
+  ]
+}
