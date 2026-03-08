@@ -6,7 +6,7 @@ import { Loader2 } from "lucide-react";
 import DashboardShell from "@/components/layout/dashboard-shell";
 import { Button } from "@/components/ui/button";
 import { usePropertyStore, useStoreHydrated } from "@/store/usestore";
-import { generateVendorStrategy, generateListingFromStore } from "@/lib/actions/property-analysis";
+import { generateAiListing } from "@/lib/actions/ai_generator";
 
 const HYDRATION_TIMEOUT_MS = 50;
 
@@ -57,22 +57,12 @@ export default function ListingGeneratorPage() {
     setGenerateError(null);
     setIsGenerating(true);
     try {
-      if (activePropertyId) {
-        const result = await generateVendorStrategy(activePropertyId, styleLabel);
-        if (result.ok) {
-          setGeneratedText(result.content);
-        } else {
-          setGenerateError(result.error);
-          setGeneratedText("");
-        }
+      const result = await generateAiListing(activePropertyId ?? null, propertyData, styleLabel);
+      if (result.ok) {
+        setGeneratedText(result.content);
       } else {
-        const result = await generateListingFromStore(propertyData, styleLabel);
-        if (result.ok) {
-          setGeneratedText(result.content);
-        } else {
-          setGenerateError(result.error);
-          setGeneratedText("");
-        }
+        setGenerateError(result.error);
+        setGeneratedText("");
       }
     } finally {
       setIsGenerating(false);
@@ -192,7 +182,7 @@ export default function ListingGeneratorPage() {
             <Button
               type="button"
               onClick={generateFromStore}
-              disabled={isGenerating || !propertyData}
+              disabled={isGenerating || (!propertyData && !activePropertyId)}
               className="h-[48px] w-[200px] rounded-md font-sans font-medium text-white bg-[#003366] hover:bg-[#003366]/90 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {isGenerating ? (
