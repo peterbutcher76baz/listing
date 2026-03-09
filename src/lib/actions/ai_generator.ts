@@ -64,7 +64,8 @@ export async function generateAiListing(
     return { ok: false, error: "No property data. Add address and features on Property Entry first." };
   }
 
-  const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
+  // The most reliable "Stable" model for high-volume tasks in 2026
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
   const featuresStr = keyFeatures.length ? keyFeatures.join(", ") : "Standard residential features";
   const livingStr = livingArea != null && livingArea > 0 ? `${livingArea}m²` : "—";
